@@ -401,7 +401,7 @@ def calc_default_marker_thresh(marker):
         return 0
 
 
-def compute_results(orig, seg, marker, resolution=None, seg_thresh=150, size_thresh='auto', marker_thresh='auto', size_thresh_upper=None):
+def compute_results(orig, seg, marker, seg_color, resolution=None, seg_thresh=150, size_thresh='auto', marker_thresh='auto', size_thresh_upper=None):
     mask = create_posneg_mask(seg, seg_thresh)
     mark_background(mask)
 
@@ -427,14 +427,40 @@ def compute_results(orig, seg, marker, resolution=None, seg_thresh=150, size_thr
         'marker_thresh': marker_thresh if marker is not None else None,
     }
 
+    # overlay = np.copy(orig)
+    # overlay[mask == MASK_BOUNDARY_POSITIVE] = (255, 0, 0)
+    # overlay[mask == MASK_BOUNDARY_NEGATIVE] = (0, 0, 255)
+
+    # refined = np.zeros_like(seg)
+    # refined[mask == MASK_CELL_POSITIVE, 0] = 255
+    # refined[mask == MASK_CELL_NEGATIVE, 2] = 255
+    # refined[mask == MASK_BOUNDARY_POSITIVE, 1] = 255
+    # refined[mask == MASK_BOUNDARY_NEGATIVE, 1] = 255
+
+    # return overlay, refined, scoring
+
+    pos_mask = np.logical_or(mask == MASK_BOUNDARY_POSITIVE, mask == MASK_CELL_POSITIVE)
+    neg_mask = np.logical_or(mask == MASK_BOUNDARY_NEGATIVE, mask == MASK_CELL_NEGATIVE)
+    cell_mask = np.logical_or(pos_mask, neg_mask)
+    boundary_mask = np.logical_or(mask == MASK_BOUNDARY_POSITIVE, mask == MASK_BOUNDARY_NEGATIVE)
+
     overlay = np.copy(orig)
     overlay[mask == MASK_BOUNDARY_POSITIVE] = (255, 0, 0)
     overlay[mask == MASK_BOUNDARY_NEGATIVE] = (0, 0, 255)
+    # overlay[boundary_mask] = (0, 0, 255)
 
-    refined = np.zeros_like(seg)
-    refined[mask == MASK_CELL_POSITIVE, 0] = 255
-    refined[mask == MASK_CELL_NEGATIVE, 2] = 255
-    refined[mask == MASK_BOUNDARY_POSITIVE, 1] = 255
-    refined[mask == MASK_BOUNDARY_NEGATIVE, 1] = 255
+    orig_pos_seg = np.copy(orig)
+    orig_pos_seg[np.logical_not(pos_mask)] = (255, 255, 255)
+    # pos_mask = np.all(orig_pos_seg != [255, 255, 255], axis=-1)
+    # orig_pos_seg[pos_mask] = [239, 76, 74]
+    orig_pos_seg[pos_mask] = seg_color
 
-    return overlay, refined, scoring
+    res_mask = np.zeros_like(seg)
+    res_mask[:, :, 0][pos_mask] = 255
+    res_mask[:, :, 2][neg_mask] = 255
+    res_mask[:, :, 1][boundary_mask] = 255
+
+    # res_mask[:, :, 0][cell_mask] = 255
+    # Image.fromarray(res_mask).show()
+
+    return overlay, orig_pos_seg, res_mask, scoring

@@ -309,11 +309,11 @@ def run_wrapper(tile, run_fn, model_path, eager_mode=False, opt=None):
                 'G3': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
                 'G4': Image.new(mode='RGB', size=(512, 512), color=(10, 10, 10)),
                 'G5': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
-                'G51': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
-                'G52': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
-                'G53': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
-                'G54': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
-                'G55': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
+                # 'G51': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
+                # 'G52': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
+                # 'G53': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
+                # 'G54': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
+                # 'G55': Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0)),
             }
         else:
             return run_fn(tile, model_path, eager_mode, opt)
@@ -518,10 +518,22 @@ def inference(img, tile_size, overlap_size, model_path, use_torchserve=False,
     else:
         # Otherwise expect a single input image, which is used directly.
         orig = img
+    
+    count = 0
+    log_path = os.path.join(model_path, 'log')
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    img.save(os.path.join(log_path, f"img.png"))
 
     tiler = InferenceTiler(orig, tile_size, overlap_size)
     for tile in tiler:
         tiler.stitch(run_wrapper(tile, run_fn, model_path, eager_mode, opt))
+        count += 1
+        print(f"\t {count}", end="")
+        tile.save(os.path.join(log_path, f"tile_{count}.png"))
+        tiler.results()['G5'].save(os.path.join(log_path, f"seg_{count}.png"))
+        # tiler.results()['G4'].save(os.path.join(log_path, f"mak_{count}.png"))
+    print(f"\t Inference count: {count}")
     results = tiler.results()
 
     if opt.model == 'DeepLIIF':
@@ -533,23 +545,23 @@ def inference(img, tile_size, overlap_size, model_path, use_torchserve=False,
             'Seg': results['G5'],
         }
         
-        if return_seg_intermediate:
-            images.update({'IHC_s':results['G51'],
-                          'Hema_s':results['G52'],
-                          'DAPI_s':results['G53'],
-                          'Lap2_s':results['G54'],
-                          'Marker_s':results['G55'],})
+        # if return_seg_intermediate:
+        #     images.update({'IHC_s':results['G51'],
+        #                   'Hema_s':results['G52'],
+        #                   'DAPI_s':results['G53'],
+        #                   'Lap2_s':results['G54'],
+        #                   'Marker_s':results['G55'],})
         
-        if color_dapi:
-            matrix = (       0,        0,        0, 0,
-                      299/1000, 587/1000, 114/1000, 0,
-                      299/1000, 587/1000, 114/1000, 0)
-            images['DAPI'] = images['DAPI'].convert('RGB', matrix)
-        if color_marker:
-            matrix = (299/1000, 587/1000, 114/1000, 0,
-                      299/1000, 587/1000, 114/1000, 0,
-                             0,        0,        0, 0)
-            images['Marker'] = images['Marker'].convert('RGB', matrix)
+        # if color_dapi:
+        #     matrix = (       0,        0,        0, 0,
+        #               299/1000, 587/1000, 114/1000, 0,
+        #               299/1000, 587/1000, 114/1000, 0)
+        #     images['DAPI'] = images['DAPI'].convert('RGB', matrix)
+        # if color_marker:
+        #     matrix = (299/1000, 587/1000, 114/1000, 0,
+        #               299/1000, 587/1000, 114/1000, 0,
+        #                      0,        0,        0, 0)
+        #     images['Marker'] = images['Marker'].convert('RGB', matrix)
         return images
 
     elif opt.model == 'DeepLIIFExt':
@@ -567,15 +579,24 @@ def inference(img, tile_size, overlap_size, model_path, use_torchserve=False,
         return results # return result images with default key names (i.e., net names)
 
 
-def postprocess(orig, images, tile_size, model, seg_thresh=150, size_thresh='auto', marker_thresh=None, size_thresh_upper=None):
+def postprocess(orig, images, tile_size, model, seg_color, seg_thresh=150, size_thresh='auto', marker_thresh=None, size_thresh_upper=None):
     if model == 'DeepLIIF':
         resolution = '40x' if tile_size > 384 else ('20x' if tile_size > 192 else '10x')
-        overlay, refined, scoring = compute_results(np.array(orig), np.array(images['Seg']),
+        # overlay, refined, scoring = compute_results(np.array(orig), np.array(images['Seg']),
+        #                                             np.array(images['Marker'].convert('L')) if 'Marker' in images else None,
+        #                                             resolution, seg_thresh, size_thresh, marker_thresh, size_thresh_upper)
+        # processed_images = {}
+        # processed_images['SegOverlaid'] = Image.fromarray(overlay)
+        # processed_images['SegRefined'] = Image.fromarray(refined)
+        # return processed_images, scoring
+
+        overlay, orig_pos_seg, res_mask, scoring = compute_results(np.array(orig), np.array(images['Seg']),
                                                     np.array(images['Marker'].convert('L')) if 'Marker' in images else None,
-                                                    resolution, seg_thresh, size_thresh, marker_thresh, size_thresh_upper)
+                                                    seg_color, resolution, seg_thresh, size_thresh, marker_thresh, size_thresh_upper)
         processed_images = {}
         processed_images['SegOverlaid'] = Image.fromarray(overlay)
-        processed_images['SegRefined'] = Image.fromarray(refined)
+        processed_images['PosSeg'] = Image.fromarray(orig_pos_seg)
+        processed_images['Mask'] = Image.fromarray(res_mask)
         return processed_images, scoring
 
     elif model in ['DeepLIIFExt','SDG']:
@@ -598,7 +619,7 @@ def postprocess(orig, images, tile_size, model, seg_thresh=150, size_thresh='aut
         raise Exception(f'postprocess() not implemented for model {model}')
 
 
-def infer_modalities(img, tile_size, model_dir, eager_mode=False,
+def infer_modalities(img, tile_size, model_dir, seg_color, eager_mode=False,
                      color_dapi=False, color_marker=False, opt=None,
                      return_seg_intermediate=False):
     """
@@ -617,6 +638,10 @@ def infer_modalities(img, tile_size, model_dir, eager_mode=False,
     input_no = opt.input_no if hasattr(opt, 'input_no') else 1
     img_size = (img.size[0] / input_no, img.size[1]) # (width, height)
 
+    print(f'\t Start Inference')
+    import time
+    start_time = time.time()
+
     images = inference(
         img,
         tile_size=tile_size,
@@ -629,10 +654,18 @@ def infer_modalities(img, tile_size, model_dir, eager_mode=False,
         opt=opt,
         return_seg_intermediate=return_seg_intermediate
     )
+
+    time1 = time.time()
+    print(f"\t Inference costs {(time1 - start_time):.2f}")
     
     if not hasattr(opt,'seg_gen') or (hasattr(opt,'seg_gen') and opt.seg_gen): # the first condition accounts for old settings of deepliif; the second refers to deepliifext models
-        post_images, scoring = postprocess(img, images, tile_size, opt.model)
-        images = {**images, **post_images}
+        # post_images, scoring = postprocess(img, images, tile_size, opt.model)
+        # images = {**images, **post_images}
+        print(f'\t Start Postprocess')
+        post_images, scoring = postprocess(img, images, tile_size, opt.model, seg_color)
+        images = {**post_images}
+        print(f"\t Postproces costs {(time.time() - time1):.2f}")
+        print(f"\t {scoring}")
         return images, scoring
     else:
         return images, None
