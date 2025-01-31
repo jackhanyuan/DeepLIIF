@@ -34,8 +34,8 @@ def cli():
     pass
 
 @cli.command()
-@click.option('--input-dir', default='datasets/TMA_registered/20x/EC002-01/EC002-01-A2/reg_results', help='reads images from here')
-@click.option('--output-dir', default='datasets/TMA_registered/20x/EC002-01/EC002-01-A2/seg_results', help='saves results here.')
+@click.option('--input-dir', default='datasets/TMA_registered/2.5x/EC001-01/EC001-01-A7/reg_results', help='reads images from here')
+@click.option('--output-dir', default='datasets/TMA_registered/2.5x/EC001-01/EC001-01-A7/seg_results', help='saves results here.')
 @click.option('--tile-size', default=512, type=click.IntRange(min=1, max=None), help='tile size')
 @click.option('--model-dir', default='./checkpoints/DeepLIIF_Latest_Model/', help='load models from here.')
 @click.option('--gpu-ids', type=int, multiple=True, help='gpu-ids 0 gpu-ids 1 or gpu-ids -1 for CPU')
@@ -156,7 +156,7 @@ def test(input_dir, output_dir, tile_size, model_dir, gpu_ids, region_size, eage
 
                 # Save result images
                 for name, i in images.items():
-                    if name == "Mask":
+                    if name == "Seg":
                         image_name = filename.replace('.' + filename.split('.')[-1],
                                                       f'_pos-{scoring["num_pos"]}-all-{scoring["num_total"]}_{name}.png')
                     else:

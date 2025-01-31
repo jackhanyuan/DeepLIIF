@@ -590,13 +590,14 @@ def postprocess(orig, images, tile_size, model, seg_color, seg_thresh=150, size_
         # processed_images['SegRefined'] = Image.fromarray(refined)
         # return processed_images, scoring
 
-        overlay, orig_pos_seg, res_mask, scoring = compute_results(np.array(orig), np.array(images['Seg']),
+        overlay, refined, seg, pos_seg_recolor, scoring = compute_results(np.array(orig), np.array(images['Seg']),
                                                     np.array(images['Marker'].convert('L')) if 'Marker' in images else None,
                                                     seg_color, resolution, seg_thresh, size_thresh, marker_thresh, size_thresh_upper)
         processed_images = {}
         processed_images['SegOverlaid'] = Image.fromarray(overlay)
-        processed_images['PosSeg'] = Image.fromarray(orig_pos_seg)
-        processed_images['Mask'] = Image.fromarray(res_mask)
+        processed_images['SegRefined'] = Image.fromarray(refined)
+        processed_images['Seg'] = Image.fromarray(seg)
+        processed_images['PosSegRecolor'] = Image.fromarray(pos_seg_recolor)
         return processed_images, scoring
 
     elif model in ['DeepLIIFExt','SDG']:
