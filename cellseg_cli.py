@@ -4,11 +4,8 @@ import json
 import time
 import click
 import torch
-import numpy as np
-import shutil
 from PIL import Image
 from pathlib import Path
-import subprocess
 
 # 添加项目根目录到Python路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,13 +17,6 @@ from deepliif.models import infer_modalities, infer_results_for_wsi
 from deepliif.util import allowed_file
 from deepliif.options import Options, print_options
 from utils.handle_log import setup_logger
-
-def ensure_exists(d):
-    # Clean directory if exists
-    # if os.path.exists(d):
-    #     shutil.rmtree(d)
-    # Create new directory
-    os.makedirs(d, exist_ok=True)
 
 @click.group()
 def cli():
@@ -44,7 +34,7 @@ def cli():
 def test(input_dir, output_dir, tile_size, model_dir, gpu_ids, region_size, eager_mode=False,
          color_dapi=False, color_marker=False, seg_color=True, log_mode='w'):
     """Test trained models"""
-    ensure_exists(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
     
     # Get sample ID from the path
     output_path = Path(output_dir)
@@ -145,14 +135,18 @@ def test(input_dir, output_dir, tile_size, model_dir, gpu_ids, region_size, eage
                     seg_color = color_dict['DEFAULT']
                 logger.info(f"Parameters - Tile size: {tile_size}, Marker color: {seg_color}")
                 
-                # Process image
-                img = Image.open(os.path.join(input_dir, filename)).convert('RGB')
-                images, scoring = infer_modalities(img, tile_size, model_dir, seg_color, eager_mode, color_dapi, color_marker, opt)
+                # symlink original image
+                img_input_path = Path(input_dir) / filename
+                img_output_path = output_path / filename
+                if img_output_path.is_symlink() or os.path.exists(img_output_path):
+                    os.unlink(img_output_path)
+                # relative symlink
+                relative_path = os.path.relpath(img_input_path, img_output_path.parent)
+                os.symlink(relative_path, img_output_path)
                 
-                # Save original image
-                img_path = os.path.join(output_dir, filename)
-                if not os.path.exists(img_path):
-                    img.save(img_path)
+                # Process image
+                img = Image.open(img_input_path).convert('RGB')
+                images, scoring = infer_modalities(img, tile_size, model_dir, seg_color, eager_mode, color_dapi, color_marker, opt)
 
                 # Save result images
                 for name, i in images.items():

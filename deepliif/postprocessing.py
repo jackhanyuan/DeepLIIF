@@ -412,7 +412,9 @@ def compute_results(orig, seg, marker, seg_color, resolution=None, seg_thresh=15
         marker = None
     elif marker_thresh == 'auto':
         marker_thresh = calc_default_marker_thresh(marker)
-
+    print(f"seg_thresh: {seg_thresh}, size_thresh: {size_thresh}, marker_thresh: {marker_thresh},size_thresh_upper:{size_thresh_upper}")
+    print(f"mask: {mask}")
+    print(f"marker: {marker}")
     counts = compute_cell_classification(mask, marker, size_thresh, marker_thresh, size_thresh_upper)
     enlarge_cell_boundaries(mask)
 
@@ -459,7 +461,6 @@ def compute_results(orig, seg, marker, seg_color, resolution=None, seg_thresh=15
     pos_seg_recolor = np.copy(orig)
     pos_seg_recolor[np.logical_not(pos_cell_mask)] = (255, 255, 255)
     # pos_mask = np.all(orig_pos_seg != [255, 255, 255], axis=-1)
-    # pos_seg_recolor[pos_mask] = [239, 76, 74]
     pos_seg_recolor[pos_cell_mask] = seg_color
 
-    return overlay, refined, seg, pos_seg_recolor, scoring
+    return overlay, refined, pos_seg_recolor, scoring

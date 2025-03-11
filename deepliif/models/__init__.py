@@ -520,19 +520,20 @@ def inference(img, tile_size, overlap_size, model_path, use_torchserve=False,
         orig = img
     
     count = 0
-    log_path = os.path.join(model_path, 'log')
-    if not os.path.exists(log_path):
-        os.makedirs(log_path)
-    img.save(os.path.join(log_path, f"img.png"))
+    # # log for img
+    # log_path = os.path.join(model_path, 'log')
+    # if not os.path.exists(log_path):
+    #     os.makedirs(log_path)
+    # img.save(os.path.join(log_path, f"img.png"))
 
     tiler = InferenceTiler(orig, tile_size, overlap_size)
     for tile in tiler:
         tiler.stitch(run_wrapper(tile, run_fn, model_path, eager_mode, opt))
         count += 1
         print(f"\t {count}", end="")
-        tile.save(os.path.join(log_path, f"tile_{count}.png"))
-        tiler.results()['G5'].save(os.path.join(log_path, f"seg_{count}.png"))
-        # tiler.results()['G4'].save(os.path.join(log_path, f"mak_{count}.png"))
+        # # log for tile and seg
+        # tile.save(os.path.join(log_path, f"tile_{count}.png"))
+        # tiler.results()['G5'].save(os.path.join(log_path, f"seg_{count}.png"))
     print(f"\t Inference count: {count}")
     results = tiler.results()
 
@@ -590,14 +591,16 @@ def postprocess(orig, images, tile_size, model, seg_color, seg_thresh=150, size_
         # processed_images['SegRefined'] = Image.fromarray(refined)
         # return processed_images, scoring
 
-        overlay, refined, seg, pos_seg_recolor, scoring = compute_results(np.array(orig), np.array(images['Seg']),
+        overlay, refined, pos_seg_recolor, scoring = compute_results(np.array(orig), np.array(images['Seg']),
                                                     np.array(images['Marker'].convert('L')) if 'Marker' in images else None,
                                                     seg_color, resolution, seg_thresh, size_thresh, marker_thresh, size_thresh_upper)
         processed_images = {}
         processed_images['SegOverlaid'] = Image.fromarray(overlay)
         processed_images['SegRefined'] = Image.fromarray(refined)
-        processed_images['Seg'] = Image.fromarray(seg)
         processed_images['PosSegRecolor'] = Image.fromarray(pos_seg_recolor)
+        processed_images['Seg'] = images['Seg']
+        processed_images['Marker'] = images['Marker']
+
         return processed_images, scoring
 
     elif model in ['DeepLIIFExt','SDG']:
