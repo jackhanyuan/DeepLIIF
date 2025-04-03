@@ -17,7 +17,7 @@ from deepliif.models import infer_modalities, infer_results_for_wsi
 from deepliif.util import allowed_file
 from deepliif.options import Options, print_options
 from utils.handle_log import setup_logger
-
+from utils.handle_img import get_color_dict
 @click.group()
 def cli():
     """Commonly used DeepLIIF batch operations for cell segmentation"""
@@ -60,24 +60,8 @@ def test(input_dir, output_dir, tile_size, model_dir, gpu_ids, region_size, eage
     logger.info("-"*70)
     
     # Color configuration for different markers
-    distinct_colors = [
-        "#000000", "#5A0007", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
-        "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
-    ]
-    # HEX to RGB
-    distinct_colors = [tuple(int(h.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4)) for h in distinct_colors]
-    color_dict = {
-        'DEFAULT': distinct_colors[0],
-        'CD4': distinct_colors[1],
-        'CD8': distinct_colors[2],
-        'CD20': distinct_colors[3],
-        'CD56': distinct_colors[4],
-        'CD68': distinct_colors[5],
-        'CD138': distinct_colors[6],
-        'CD163': distinct_colors[7],
-        'FOXP3': distinct_colors[8],
-        'PDL1': distinct_colors[9]
-    }
+    markers = ['DEFAULT', 'CD4', 'CD8', 'CD20', 'CD56', 'CD68', 'CD138', 'CD163', 'FOXP3', 'PDL1']
+    color_dict = get_color_dict(markers, type='rgb')
 
     # Get image files
     image_files = [fn for fn in os.listdir(input_dir) if allowed_file(fn)]

@@ -412,9 +412,7 @@ def compute_results(orig, seg, marker, seg_color, resolution=None, seg_thresh=15
         marker = None
     elif marker_thresh == 'auto':
         marker_thresh = calc_default_marker_thresh(marker)
-    print(f"seg_thresh: {seg_thresh}, size_thresh: {size_thresh}, marker_thresh: {marker_thresh},size_thresh_upper:{size_thresh_upper}")
-    print(f"mask: {mask}")
-    print(f"marker: {marker}")
+
     counts = compute_cell_classification(mask, marker, size_thresh, marker_thresh, size_thresh_upper)
     enlarge_cell_boundaries(mask)
 
