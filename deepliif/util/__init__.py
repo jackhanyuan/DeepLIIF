@@ -32,7 +32,7 @@ import zarr
 
 excluding_names = ['Hema', 'DAPI', 'DAPILap2', 'Ki67', 'Seg', 'Marked', 'SegRefined', 'SegOverlaid', 'Marker', 'Lap2']
 # Image extensions to consider
-image_extensions = ['.png', '.jpg', '.tif', '.jpeg']
+image_extensions = ['.png', '.jpg', '.tif', '.tiff', '.jpeg', '.svs']
 
 
 def allowed_file(filename):

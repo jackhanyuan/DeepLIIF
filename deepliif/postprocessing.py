@@ -1022,6 +1022,41 @@ def create_final_images(overlay, mask):
 
     return overlay, refined
 
+def create_final_seg_images(orig, mask, seg_color):
+    """
+    Create a recolored segmentation image using seg_color for positive cells
+    (positive boundary + positive cell interior). Everything else is set to white.
+
+    Parameters
+    ----------
+    orig : ndarray (H, W, 3)
+        Original RGB image
+    mask : ndarray (H, W)
+        Label mask
+    seg_color : tuple
+        RGB color used for positive segmentation
+
+    Returns
+    -------
+    ndarray :
+        Recolored segmentation image
+    """
+    # overlay & refined (JIT accelerated pixel loop)
+    overlay, refined = create_final_images(orig.copy(), mask)
+
+    # Positive region = positive boundary + positive cell
+    pos_cell_mask = np.logical_or(
+        mask == LABEL_BORDER_POS,
+        mask == LABEL_POSITIVE
+    )
+    pos_seg_recolor = np.copy(orig)
+    # Non-positive → white
+    pos_seg_recolor[~pos_cell_mask] = (255, 255, 255)
+    # Positive → seg_color
+    pos_seg_recolor[pos_cell_mask] = seg_color
+
+    return overlay, refined, pos_seg_recolor
+
 
 @jit(nopython=True)
 def fill_cells(mask):
@@ -1153,7 +1188,7 @@ def compute_cell_results(seg, marker, resolution, version=3,
     return results
 
 
-def compute_final_results(orig, seg, marker, resolution,
+def compute_final_results(orig, seg, marker, seg_color, resolution,
                           size_thresh='default',
                           marker_thresh=None,
                           size_thresh_upper=None,
@@ -1171,6 +1206,8 @@ def compute_final_results(orig, seg, marker, resolution,
         Inferred segmentation map image.
     marker : Image | ndarray
         Inferred marker image.
+    seg_color : tuple
+        Color of the segmentation map.
     resolution : string
         The resolution/magnification of the original image.  Valid values are '10x', '20x', or '40x'.
     size_thresh : int
@@ -1210,7 +1247,8 @@ def compute_final_results(orig, seg, marker, resolution,
     counts = create_cell_classification(mask, cellsinfo, size_thresh, marker_thresh, size_thresh_upper)
     enlarge_cell_boundaries(mask)
     enlarge_cell_boundaries(mask)
-    overlay, refined = create_final_images(np.array(orig), mask)
+    # overlay, refined = create_final_images(np.array(orig), mask)
+    overlay, refined, pos_seg_recolor = create_final_seg_images(np.array(orig), mask, seg_color)
 
     scoring = {
         'num_total': counts['num_total'],
@@ -1223,7 +1261,8 @@ def compute_final_results(orig, seg, marker, resolution,
         'marker_thresh': marker_thresh if marker is not None else None,
     }
 
-    return overlay, refined, scoring
+    # return overlay, refined, scoring
+    return overlay, refined, pos_seg_recolor, scoring
 
 
 def cells_to_final_results(data, orig,
