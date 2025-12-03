@@ -6,21 +6,36 @@ import click
 import torch
 from PIL import Image
 from pathlib import Path
+from typing import List
 
-# 添加项目根目录到Python路径
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
-sys.path.append(project_root)
+# add project root directory to Python path
+CURRENT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = CURRENT_DIR.parent.parent
+sys.path.append(str(PROJECT_ROOT))
 
 from deepliif.models import infer_modalities
 from deepliif.util import allowed_file
 from deepliif.options import Options, print_options
 from utils.handle_log import setup_logger
 from utils.handle_img import get_color_dict
+from utils.handle_file import link_or_copy, copy_related_files
 
-def ensure_exists(d):
-    if not os.path.exists(d):
-        os.makedirs(d)
+def resolve_project_path(path_str: str) -> Path:
+    """Resolve a path relative to the project root directory."""
+    path = Path(path_str).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path
+
+def detect_marker_tag(filename: str, available_markers: List[str]) -> str:
+    """Infer marker tag from file name."""
+    marker_pool = {marker.upper() for marker in available_markers if marker.upper() != 'DEFAULT'}
+    tokens = Path(filename).stem.replace('-', '_').split('_')
+    for token in tokens:
+        token_upper = token.upper()
+        if token_upper in marker_pool:
+            return token_upper
+    return 'DEFAULT'
 
 @click.group()
 def cli():
@@ -28,11 +43,11 @@ def cli():
     pass
 
 @cli.command()
-@click.option('--input-dir', default='datasets/TMA_registered/20x/EC002-01/EC002-01-A2/reg_results', help='reads images from here')
-@click.option('--output-dir', default='datasets/TMA_registered/20x/EC002-01/EC002-01-A2/seg_results', help='saves results here.')
+@click.option('--input-dir', default='datasets/04_Registered/C2_AYCH_Postop_TMA/AY_LADX-31_20.0x/AY_LADX-31_20.0x_X1Y1', help='reads images from here')
+@click.option('--output-dir', default='datasets/05_Results/C2_AYCH_Postop_TMA/AY_LADX-31_20.0x/AY_LADX-31_20.0x_X1Y1/seg_results', help='saves results here.')
 @click.option('--tile-size', default=512, type=click.IntRange(min=1, max=None), help='tile size')
-@click.option('--model-dir', default='./checkpoints/DeepLIIF_Latest_Model/', help='load models from here.')
-@click.option('--filename-pattern', default='*', help='run inference on files of which the name matches the pattern.')
+@click.option('--model-dir', default='models/DeepLIIF/checkpoints/DeepLIIF_Latest_Model/', help='load models from here.')
+@click.option('--filename-pattern', default='*_reg.*', help='run inference on files of which the name matches the pattern.')
 @click.option('--gpu-ids', type=int, multiple=True, help='gpu-ids 0 gpu-ids 1 or gpu-ids -1 for CPU')
 @click.option('--seg-only', is_flag=True, default=True, help='save only the final segmentation image (currently only applies to DeepLIIF model); overwrites --seg-intermediate')
 @click.option('--log-mode', default='w', help='Logging mode for cellseg_cli.py')
@@ -41,9 +56,16 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
     
     """Test trained models
     """
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = Path(output_dir)
-    sample_id = output_path.parent.name  # Get the core directory name (EC00X-0X-AX)
+    input_path = resolve_project_path(input_dir)
+    output_path = resolve_project_path(output_dir)
+    model_path = resolve_project_path(model_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input directory '{input_path}' not found.")
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model directory '{model_path}' not found.")
+    sample_id = output_path.parent.name  # Get the core directory name
 
     # Setup logger
     logger = setup_logger(
@@ -57,42 +79,48 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
     logger.info(f"{'CELL SEGMENTATION - ' + sample_id:^70}")
     logger.info("="*70)
     logger.info("Configuration:")
-    logger.info(f"Input directory: {input_dir}")
-    logger.info(f"Output directory: {output_dir}")
+    logger.info(f"Input directory: {input_path}")
+    logger.info(f"Output directory: {output_path}")
     logger.info(f"Tile size: {tile_size}")
-    logger.info(f"Model directory: {model_dir}")
+    logger.info(f"Model directory: {model_path}")
     logger.info(f"Logging mode: {log_mode}")
     logger.info("-"*70)
     
     # Color configuration for different markers
     markers = ['DEFAULT', 'CD4', 'CD8', 'CD20', 'CD56', 'CD68', 'CD138', 'CD163', 'FOXP3']
     color_dict = get_color_dict(markers, type='rgb')
+
+    # Copy or link HE and related files to seg_results
+    he_files = sorted(list(input_path.glob('*HE*.tif')) + list(input_path.glob('*HE*.tiff')), key=lambda x: x.name)
+    if he_files:
+        he_file = he_files[0]
+        copied, message = copy_related_files(he_file, output_path, use_symlink=True)
+        if copied:
+            logger.info(f"{message} for {he_file.name}")
     
     if seg_intermediate and seg_only:
         seg_intermediate = False
 
     if filename_pattern == '*':
         print('use all alowed files')
-        image_files = [fn for fn in os.listdir(input_dir) if allowed_file(fn)]
+        image_files = [fn.name for fn in sorted(input_path.iterdir()) if fn.is_file() and allowed_file(fn.name)]
     else:
-        import glob
         print('match files using filename pattern',filename_pattern)
-        image_files = [os.path.basename(f) for f in glob.glob(os.path.join(input_dir, filename_pattern))]
+        image_files = [fn.name for fn in sorted(input_path.glob(filename_pattern)) if fn.is_file() and allowed_file(fn.name)]
     logger.info(f"Found {len(image_files)} images to process:")
     for img in image_files:
         logger.info(f"  - {img}")
     logger.info("-"*70)
     
-    files = os.listdir(model_dir)
-    assert 'train_opt.txt' in files, f'file train_opt.txt is missing from model directory {model_dir}'
-    opt = Options(path_file=os.path.join(model_dir,'train_opt.txt'), mode='test')
+    files = os.listdir(model_path)
+    assert 'train_opt.txt' in files, f'file train_opt.txt is missing from model directory {model_path}'
+    opt = Options(path_file=os.path.join(model_path,'train_opt.txt'), mode='test')
     opt.use_dp = False
     opt.BtoA = btoa
     opt.epoch = epoch
     
     number_of_gpus_all = torch.cuda.device_count()
     if number_of_gpus_all < len(gpu_ids) and -1 not in gpu_ids:
-        number_of_gpus = 0
         gpu_ids = [-1]
         print(f'Specified to use GPU {opt.gpu_ids} for inference, but there are only {number_of_gpus_all} GPU devices. Switched to CPU inference.')
 
@@ -119,25 +147,22 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
             logger.info(f"Processing image: {filename}")
             start_time = time.time()
             
-            # Get marker color
+            # 获取染色标记以安全映射颜色
             if seg_color:
-                seg_tag = filename.split('-')[2].upper()
-                seg_color = color_dict[seg_tag] if seg_tag in color_dict else color_dict['DEFAULT']
+                marker_tag = detect_marker_tag(filename, markers)
+                seg_color_value = color_dict.get(marker_tag, color_dict['DEFAULT'])
             else:
-                seg_color = color_dict['DEFAULT']
-            logger.info(f"Parameters - Tile size: {tile_size}, Marker color: {seg_color}")
+                seg_color_value = color_dict['DEFAULT']
+            logger.info(f"Parameters - Tile size: {tile_size}, Marker color: {seg_color_value}")
             
             # symlink original image
-            img_input_path = Path(input_dir) / filename
+            img_input_path = input_path / filename
             img_output_path = output_path / filename
-            if img_output_path.is_symlink() or os.path.exists(img_output_path):
-                os.unlink(img_output_path)
-            # relative symlink
-            relative_path = os.path.relpath(img_input_path, img_output_path.parent)
-            os.symlink(relative_path, img_output_path)
+            link_or_copy(img_input_path, img_output_path, use_symlink=True)
 
             img = Image.open(img_input_path).convert('RGB')
-            images, scoring = infer_modalities(img, tile_size, model_dir, seg_color, eager_mode, color_dapi, color_marker, opt, return_seg_intermediate=seg_intermediate, seg_only=seg_only)
+            images, scoring = infer_modalities(img, tile_size, str(model_path), seg_color_value, eager_mode, color_dapi, color_marker, opt, return_seg_intermediate=seg_intermediate, seg_only=seg_only)
+            scoring['tile_size'] = tile_size
 
             for name, i in images.items():
                 if name == "Seg":
@@ -145,12 +170,12 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
                                                     f'_pos-{scoring["num_pos"]}-all-{scoring["num_total"]}_{name}.png')
                 else:
                     image_name = filename.replace('.' + filename.split('.')[-1], f'_{name}.png')
-                i.save(os.path.join(output_dir, image_name))
+                i.save(output_path / image_name)
                 logger.info(f"Saved: {image_name}")
 
             # Save and log cell counts
             if scoring is not None:
-                json_path = os.path.join(output_dir, filename.replace('.' + filename.split('.')[-1], f'.json'))
+                json_path = output_path / filename.replace('.' + filename.split('.')[-1], f'.json')
                 with open(json_path, 'w') as f:
                     json.dump(scoring, f, indent=2)
                 logger.info("\nCell counting results:")

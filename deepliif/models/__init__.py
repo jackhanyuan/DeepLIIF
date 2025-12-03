@@ -444,8 +444,8 @@ def inference(img, tile_size, overlap_size, model_path, use_torchserve=False,
         tiler.stitch(run_wrapper(tile, run_fn, model_path, None, eager_mode, opt, seg_only, seg_weights))
         count += 1
         print(f"\t {count}", end="")
-        tile.save(os.path.join(log_path, f"tile_{count}.png"))
-        tiler.results()['G5'].save(os.path.join(log_path, f"seg_{count}.png"))
+        # tile.save(os.path.join(log_path, f"tile_{count}.png"))
+        # tiler.results()['G5'].save(os.path.join(log_path, f"seg_{count}.png"))
         # tiler.results()['G4'].save(os.path.join(log_path, f"mak_{count}.png"))
     print(f"\t Inference count: {count}")
 
@@ -510,13 +510,15 @@ def postprocess(orig, images, tile_size, model, seg_color, seg_thresh=150, size_
         # processed_images['SegRefined'] = Image.fromarray(refined)
         # return processed_images, scoring
 
-        overlay, orig_pos_seg, res_mask, scoring = compute_final_results(
+        overlay, refined, pos_seg_recolor, scoring = compute_final_results(
             orig, images['Seg'], images.get('Marker'), seg_color, resolution,
             size_thresh, marker_thresh, size_thresh_upper, seg_thresh)
         processed_images = {}
         processed_images['SegOverlaid'] = Image.fromarray(overlay)
-        processed_images['PosSeg'] = Image.fromarray(orig_pos_seg)
-        processed_images['Mask'] = Image.fromarray(res_mask)
+        processed_images['SegRefined'] = Image.fromarray(refined)
+        processed_images['PosSegRecolor'] = Image.fromarray(pos_seg_recolor)
+        processed_images['Seg'] = images['Seg']
+        processed_images['Marker'] = images['Marker']
         return processed_images, scoring
 
     elif model in ['DeepLIIFExt','SDG']:
