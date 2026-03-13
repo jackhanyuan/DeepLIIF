@@ -18,7 +18,7 @@ def blend_images(base_image, overlay_image):
     return base_image
 
 
-def blend_imallges_from_folder(folder_path, output_path, blend_he=False):
+def blend_images_from_folder(folder_path, output_path, blend_he=False):
     # 获取文件夹中所有图像文件
     image_files = [f for f in os.listdir(folder_path) if f.endswith(('png', 'jpg', 'jpeg', 'tif', 'tiff'))]
     he_images = [f for f in image_files if 'he' in f.lower()]

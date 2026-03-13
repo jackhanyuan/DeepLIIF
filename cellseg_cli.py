@@ -45,7 +45,7 @@ def cli():
 @cli.command()
 @click.option('--input-dir', default='datasets/04_Registered/C2_AYCH_Postop_TMA/AY_LADX-31_20.0x/AY_LADX-31_20.0x_X1Y1', help='reads images from here')
 @click.option('--output-dir', default='datasets/05_Results/C2_AYCH_Postop_TMA/AY_LADX-31_20.0x/AY_LADX-31_20.0x_X1Y1/seg_results', help='saves results here.')
-@click.option('--tile-size', default=512, type=click.IntRange(min=1, max=None), help='tile size')
+@click.option('--tile-size', default=512, type=click.IntRange(min=1, max=None), help="Resolution: '40x' if tile_size > 384 else '20x' if tile_size > 192 else '10x'")
 @click.option('--model-dir', default='models/DeepLIIF/checkpoints/DeepLIIF_Latest_Model/', help='load models from here.')
 @click.option('--filename-pattern', default='*_reg.*', help='run inference on files of which the name matches the pattern.')
 @click.option('--gpu-ids', type=int, multiple=True, help='gpu-ids 0 gpu-ids 1 or gpu-ids -1 for CPU')
