@@ -40,6 +40,19 @@ def detect_marker_tag(filename: str, available_markers: List[str]) -> str:
     return 'DEFAULT'
 
 
+def parse_seg_weights(seg_weights: str, opt: Options) -> List[float]:
+    """Parse segmentation weights from CLI string."""
+    values = [float(value.strip()) for value in seg_weights.split(',') if value.strip()]
+    expected = opt.modalities_no + 1 if opt.model in ['DeepLIIF', 'DeepLIIFKD'] else opt.modalities_no
+    if len(values) != expected:
+        raise click.BadParameter(
+            f'Expected {expected} weights for model {opt.model}, got {len(values)}: {values}'
+        )
+    if abs(sum(values) - 1.0) > 1e-6:
+        raise click.BadParameter(f'Segmentation weights must sum to 1.0, got {sum(values):.6f}')
+    return values
+
+
 @click.group()
 def cli():
     """Commonly used DeepLIIF batch operations for cell segmentation"""
@@ -53,10 +66,20 @@ def cli():
 @click.option('--model-dir', default='models/DeepLIIF/checkpoints/DeepLIIF_Latest_Model/', help='load models from here.')
 @click.option('--filename-pattern', default='*_reg.*', help='run inference on files of which the name matches the pattern.')
 @click.option('--gpu-ids', type=int, multiple=True, help='gpu-ids 0 gpu-ids 1 or gpu-ids -1 for CPU')
-@click.option('--seg-only', is_flag=True, default=True, help='save only the final segmentation image (currently only applies to DeepLIIF model); overwrites --seg-intermediate')
+@click.option('--seg-intermediate', is_flag=True, help='also save intermediate segmentation images (currently only applies to DeepLIIF model)')
+@click.option('--seg-only', is_flag=True, help='save only the final segmentation image (currently only applies to DeepLIIF model); overwrites --seg-intermediate')
+@click.option('--mod-only', is_flag=True, help='save only translated modality images; overwrites --seg-only and --seg-intermediate')
+@click.option('--eager-mode', is_flag=True, help='use eager mode (loading original models instead of serialized ones)')
+@click.option('--epoch', default='latest', help='for eager mode, which epoch to load')
+@click.option('--color-dapi', is_flag=True, help='color dapi image to produce the same coloring as in the paper')
+@click.option('--color-marker', is_flag=True, help='color marker image to produce the same coloring as in the paper')
+@click.option('--btoa', is_flag=True, help='for unaligned models, load generatorB instead of generatorA')
+@click.option('--seg-color/--no-seg-color', default=True, help='enable marker-specific positive segmentation recoloring')
+@click.option('--seg-weights', default='', help='comma-separated weights used to aggregate segmentation branches, for example 0.5,0,0,0,0.5')
 @click.option('--log-mode', default='w', help='Logging mode for cellseg_cli.py')
-def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids, eager_mode=False, epoch='latest',
-         seg_intermediate=False, seg_only=True, color_dapi=False, color_marker=False, btoa=False, seg_color=True, log_mode='w'):
+def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids, seg_only,
+         seg_intermediate, mod_only, eager_mode, epoch, color_dapi, color_marker, btoa,
+         seg_color, seg_weights, log_mode):
     """Test trained models"""
     input_path = resolve_project_path(input_dir)
     output_path = resolve_project_path(output_dir)
@@ -68,6 +91,12 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
     if not model_path.exists():
         raise FileNotFoundError(f"Model directory '{model_path}' not found.")
     sample_id = output_path.parent.name
+
+    if mod_only:
+        seg_only = False
+        seg_intermediate = False
+    elif seg_intermediate and seg_only:
+        seg_intermediate = False
 
     logger = setup_logger(
         save_dir=str(output_path),
@@ -83,6 +112,14 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
     logger.info(f"Output directory: {output_path}")
     logger.info(f"Tile size: {tile_size}")
     logger.info(f"Model directory: {model_path}")
+    logger.info(f"Eager mode: {eager_mode}")
+    logger.info(f"Epoch: {epoch}")
+    logger.info(f"Seg only: {seg_only}")
+    logger.info(f"Seg intermediate: {seg_intermediate}")
+    logger.info(f"Mod only: {mod_only}")
+    logger.info(f"Color dapi: {color_dapi}")
+    logger.info(f"Color marker: {color_marker}")
+    logger.info(f"Marker recolor: {seg_color}")
     logger.info(f"Logging mode: {log_mode}")
     logger.info("-" * 70)
 
@@ -95,9 +132,6 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
         copied, message = copy_related_files(he_file, output_path, use_symlink=True)
         if copied:
             logger.info(f"{message} for {he_file.name}")
-
-    if seg_intermediate and seg_only:
-        seg_intermediate = False
 
     if filename_pattern == '*':
         print('use all alowed files')
@@ -116,6 +150,16 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
     opt.use_dp = False
     opt.BtoA = btoa
     opt.epoch = epoch
+    if seg_weights:
+        seg_weights_value = parse_seg_weights(seg_weights, opt)
+        seg_weights_source = 'cli'
+    elif hasattr(opt, 'seg_weights'):
+        seg_weights_value = list(opt.seg_weights)
+        seg_weights_source = 'model_options'
+    else:
+        seg_weights_value = None
+        seg_weights_source = 'official_default'
+    logger.info(f"Segmentation weights ({seg_weights_source}): {seg_weights_value if seg_weights_value is not None else 'default'}")
 
     number_of_gpus_all = torch.cuda.device_count()
     if number_of_gpus_all < len(gpu_ids) and -1 not in gpu_ids:
@@ -166,12 +210,15 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_pattern, gpu_ids,
                 opt=opt,
                 return_seg_intermediate=seg_intermediate,
                 seg_only=seg_only,
+                mod_only=mod_only,
+                seg_weights=seg_weights_value,
                 seg_color=seg_color_value,
             )
-            scoring['tile_size'] = tile_size
+            if scoring is not None:
+                scoring['tile_size'] = tile_size
 
             for name, image in images.items():
-                if name == 'Seg':
+                if name == 'Seg' and scoring is not None:
                     image_name = filename.replace(
                         '.' + filename.split('.')[-1],
                         f'_pos-{scoring["num_pos"]}-all-{scoring["num_total"]}_{name}.png'

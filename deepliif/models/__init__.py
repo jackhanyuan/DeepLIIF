@@ -298,13 +298,6 @@ def run_dask(img, model_path=None, nets=None, eager_mode=False, opt=None, seg_on
             # }
             weights = {f'G{opt.mod_id_seg}{int(opt.input_id)+i}': 1/(opt.modalities_no+1) for i in range(opt.modalities_no+1)}
         else:
-            # weights = {
-            #     'G51': seg_weights[0], # IHC
-            #     'G52': seg_weights[1], # Hema
-            #     'G53': seg_weights[2], # DAPI
-            #     'G54': seg_weights[3], # Lap2
-            #     'G55': seg_weights[4], # Marker
-            # }
             weights = {f'G{opt.mod_id_seg}{int(opt.input_id)+i}': seg_weight for i,seg_weight in enumerate(seg_weights)}
         
         
@@ -657,7 +650,10 @@ def infer_modalities(img, tile_size, model_dir, eager_mode=False,
         if not mod_only:
             if seg_color is not None:
                 post_images, scoring = postprocess_with_seg_color(img, images, tile_size, opt.model, seg_color)
-                images = {**post_images}
+                if seg_only:
+                    images = {**post_images}
+                else:
+                    images = {**images, **post_images}
             else:
                 post_images, scoring = postprocess(img, images, tile_size, opt.model)
                 images = {**images, **post_images}
