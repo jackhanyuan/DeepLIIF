@@ -39,7 +39,7 @@ from dask import delayed, compute
 from deepliif.util import *
 from deepliif.util.util import tensor_to_pil
 from deepliif.data import transform
-from deepliif.postprocessing import compute_final_results, compute_cell_results, to_array
+from deepliif.postprocessing import compute_final_results, compute_final_results_with_seg_color, compute_cell_results, to_array
 from deepliif.postprocessing import encode_cell_data_v4, decode_cell_data_v4
 from deepliif.options import Options, print_options
 
@@ -595,9 +595,32 @@ def postprocess(orig, images, tile_size, model, seg_thresh=120, size_thresh='def
         raise Exception(f'postprocess() not implemented for model {model}')
 
 
+def postprocess_with_seg_color(orig, images, tile_size, model, seg_color,
+                               seg_thresh=150, size_thresh='default',
+                               marker_thresh=None, size_thresh_upper=None):
+    if model not in ['DeepLIIF', 'DeepLIIFKD']:
+        raise Exception(f'postprocess_with_seg_color() not implemented for model {model}')
+
+    resolution = '40x' if tile_size > 384 else ('20x' if tile_size > 192 else '10x')
+    marker_key = find_marker_key(images)
+    overlay, refined, pos_seg_recolor, scoring = compute_final_results_with_seg_color(
+        orig, images['Seg'], images.get(marker_key), seg_color, resolution,
+        size_thresh, marker_thresh, size_thresh_upper, seg_thresh)
+    processed_images = {
+        'SegOverlaid': Image.fromarray(overlay),
+        'SegRefined': Image.fromarray(refined),
+        'PosSegRecolor': Image.fromarray(pos_seg_recolor),
+        'Seg': images['Seg'],
+    }
+    if marker_key is not None:
+        processed_images['Marker'] = images[marker_key]
+    return processed_images, scoring
+
+
 def infer_modalities(img, tile_size, model_dir, eager_mode=False,
                      color_dapi=False, color_marker=False, opt=None,
-                     return_seg_intermediate=False, seg_only=False, mod_only=False, seg_weights=None):
+                     return_seg_intermediate=False, seg_only=False, mod_only=False, seg_weights=None,
+                     seg_color=None):
     """
     This function is used to infer modalities for the given image using a trained model.
     :param img: The input image.
@@ -632,12 +655,16 @@ def infer_modalities(img, tile_size, model_dir, eager_mode=False,
 
     if not hasattr(opt,'seg_gen') or (hasattr(opt,'seg_gen') and opt.seg_gen): # the first condition accounts for old settings of deepliif; the second refers to deepliifext models
         if not mod_only:
-            post_images, scoring = postprocess(img, images, tile_size, opt.model)
-            images = {**images, **post_images}
-            if seg_only:
-                delete_keys = [k for k in images.keys() if 'Seg' not in k]
-                for name in delete_keys:
-                    del images[name]
+            if seg_color is not None:
+                post_images, scoring = postprocess_with_seg_color(img, images, tile_size, opt.model, seg_color)
+                images = {**post_images}
+            else:
+                post_images, scoring = postprocess(img, images, tile_size, opt.model)
+                images = {**images, **post_images}
+                if seg_only:
+                    delete_keys = [k for k in images.keys() if 'Seg' not in k]
+                    for name in delete_keys:
+                        del images[name]
             return images, scoring
         else:
             return images, None

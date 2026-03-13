@@ -1023,6 +1023,36 @@ def create_final_images(overlay, mask):
     return overlay, refined
 
 
+def create_final_seg_images(orig, mask, seg_color):
+    """
+    Create a recolored segmentation image for positive cells.
+
+    Parameters
+    ----------
+    orig : ndarray
+        Original RGB image array.
+    mask : ndarray
+        Label mask.
+    seg_color : tuple
+        RGB color used for positive segmentation.
+
+    Returns
+    -------
+    ndarray :
+        Overlaid image.
+    ndarray :
+        Refined segmentation image.
+    ndarray :
+        Recolored positive segmentation image.
+    """
+
+    overlay, refined = create_final_images(orig.copy(), mask)
+    pos_cell_mask = np.logical_or(mask == LABEL_BORDER_POS, mask == LABEL_POSITIVE)
+    pos_seg_recolor = np.full(orig.shape, 255, dtype=np.uint8)
+    pos_seg_recolor[pos_cell_mask] = seg_color
+    return overlay, refined, pos_seg_recolor
+
+
 @jit(nopython=True)
 def fill_cells(mask):
     """
@@ -1224,6 +1254,46 @@ def compute_final_results(orig, seg, marker, resolution,
     }
 
     return overlay, refined, scoring
+
+
+def compute_final_results_with_seg_color(orig, seg, marker, seg_color, resolution,
+                                         size_thresh='default',
+                                         marker_thresh=None,
+                                         size_thresh_upper=None,
+                                         seg_thresh=DEFAULT_SEG_THRESH,
+                                         noise_thresh=DEFAULT_NOISE_THRESH,
+                                         large_noise_thresh='default'):
+    """
+    Compute final count and image results with an extra recolored segmentation output.
+    """
+
+    large_noise_thresh = calculate_large_noise_thresh(large_noise_thresh, resolution)
+    mask, cellsinfo, defaults = get_cells_info(seg, marker, resolution, noise_thresh, seg_thresh, large_noise_thresh)
+
+    if size_thresh is None:
+        size_thresh = 0
+    elif size_thresh == 'default':
+        size_thresh = defaults['size_thresh']
+    if marker_thresh == 'default':
+        marker_thresh = defaults['marker_thresh']
+
+    counts = create_cell_classification(mask, cellsinfo, size_thresh, marker_thresh, size_thresh_upper)
+    enlarge_cell_boundaries(mask)
+    enlarge_cell_boundaries(mask)
+    overlay, refined, pos_seg_recolor = create_final_seg_images(np.array(orig), mask, seg_color)
+
+    scoring = {
+        'num_total': counts['num_total'],
+        'num_pos': counts['num_pos'],
+        'num_neg': counts['num_neg'],
+        'percent_pos': round(counts['num_pos'] / counts['num_total'] * 100, 1) if counts['num_pos'] > 0 else 0,
+        'seg_thresh': seg_thresh,
+        'size_thresh': size_thresh,
+        'size_thresh_upper': size_thresh_upper,
+        'marker_thresh': marker_thresh if marker is not None else None,
+    }
+
+    return overlay, refined, pos_seg_recolor, scoring
 
 
 def cells_to_final_results(data, orig,
