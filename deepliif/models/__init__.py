@@ -39,7 +39,7 @@ from dask import delayed, compute
 from deepliif.util import *
 from deepliif.util.util import tensor_to_pil
 from deepliif.data import transform
-from deepliif.postprocessing import compute_final_results, compute_final_results_with_seg_color, compute_cell_results, to_array
+from deepliif.postprocessing import compute_final_results, compute_final_results_with_seg_color, compute_cell_results, infer_resolution_from_tile_size, to_array, DEFAULT_SEG_THRESH
 from deepliif.postprocessing import encode_cell_data_v4, decode_cell_data_v4
 from deepliif.options import Options, print_options
 
@@ -375,8 +375,47 @@ def run_dask(img, model_path=None, nets=None, eager_mode=False, opt=None, seg_on
         raise Exception(f'run_dask() not fully implemented for {opt.model}')
 
 
-def is_empty(tile):
-    thresh = 9
+DEFAULT_EMPTY_TILE_VAR_THRESH = 9
+DEFAULT_SIZE_THRESH = 'default'
+DEFAULT_MARKER_THRESH_LOWER = 0
+DEFAULT_MARKER_THRESH_UPPER = 255
+
+
+def build_cellseg_runtime_config(seg_thresh=DEFAULT_SEG_THRESH,
+                                 size_thresh=DEFAULT_SIZE_THRESH,
+                                 size_thresh_upper=None,
+                                 marker_thresh_lower=DEFAULT_MARKER_THRESH_LOWER,
+                                 marker_thresh_upper=DEFAULT_MARKER_THRESH_UPPER,
+                                 empty_tile_var_thresh=DEFAULT_EMPTY_TILE_VAR_THRESH):
+    return {
+        'seg_thresh': seg_thresh,
+        'size_thresh': size_thresh,
+        'size_thresh_upper': size_thresh_upper,
+        'marker_thresh_lower': marker_thresh_lower,
+        'marker_thresh_upper': marker_thresh_upper,
+        'empty_tile_var_thresh': empty_tile_var_thresh,
+    }
+
+
+def get_cellseg_runtime_config(opt):
+    runtime = getattr(opt, 'cellseg_runtime', None)
+    if runtime is None:
+        return build_cellseg_runtime_config()
+
+    return build_cellseg_runtime_config(
+        seg_thresh=runtime.get('seg_thresh', DEFAULT_SEG_THRESH),
+        size_thresh=runtime.get('size_thresh', DEFAULT_SIZE_THRESH),
+        size_thresh_upper=runtime.get('size_thresh_upper'),
+        marker_thresh_lower=runtime.get('marker_thresh_lower', DEFAULT_MARKER_THRESH_LOWER),
+        marker_thresh_upper=runtime.get(
+            'marker_thresh_upper',
+            runtime.get('marker_thresh', DEFAULT_MARKER_THRESH_UPPER),
+        ),
+        empty_tile_var_thresh=runtime.get('empty_tile_var_thresh', DEFAULT_EMPTY_TILE_VAR_THRESH),
+    )
+
+
+def is_empty(tile, thresh=DEFAULT_EMPTY_TILE_VAR_THRESH):
     if isinstance(tile, list): # for pair of tiles, only mark it as empty / no need for prediction if ALL tiles are empty
         return all([True if image_variance_gray(t) < thresh else False for t in tile])
     else:
@@ -384,8 +423,9 @@ def is_empty(tile):
 
 
 def run_wrapper(tile, run_fn, model_path=None, nets=None, eager_mode=False, opt=None, seg_only=False, mod_only=False, seg_weights=None, use_dask=True, output_tensor=False):
+    empty_tile_var_thresh = get_cellseg_runtime_config(opt)['empty_tile_var_thresh']
     if opt.model in ['DeepLIIF','DeepLIIFKD']:
-        if is_empty(tile):
+        if is_empty(tile, empty_tile_var_thresh):
             if seg_only: # return seg image and the last translated modality
                 res = {
                     #f'G{opt.modalities_no}': Image.new(mode='RGB', size=(512, 512), color=(10, 10, 10)),
@@ -426,14 +466,14 @@ def run_wrapper(tile, run_fn, model_path=None, nets=None, eager_mode=False, opt=
         else:
             return run_fn(tile, model_path, None, eager_mode, opt, seg_only, mod_only, seg_weights)
     elif opt.model in ['DeepLIIFExt', 'SDG']:
-        if is_empty(tile):
+        if is_empty(tile, empty_tile_var_thresh):
             res = {'G_' + str(i): Image.new(mode='RGB', size=(512, 512)) for i in range(1, opt.modalities_no + 1)}
             res.update({'GS_' + str(i): Image.new(mode='RGB', size=(512, 512)) for i in range(1, opt.modalities_no + 1)})
             return res
         else:
             return run_fn(tile, model_path, None, eager_mode, opt)
     elif opt.model in ['CycleGAN']:
-        if is_empty(tile):
+        if is_empty(tile, empty_tile_var_thresh):
             net_names = ['GB_{i+1}' for i in range(opt.modalities_no)] if opt.BtoA else [f'GA_{i+1}' for i in range(opt.modalities_no)]
             res = {net_name: Image.new(mode='RGB', size=(512, 512)) for net_name in net_names}
             return res
@@ -557,19 +597,23 @@ def inference(img, tile_size, overlap_size, model_path, use_torchserve=False,
         return results # return result images with default key names (i.e., net names)
 
 
-def postprocess(orig, images, tile_size, model, seg_thresh=120, size_thresh='default', marker_thresh=None, size_thresh_upper=None):
+def postprocess(orig, images, tile_size, model, seg_thresh=120, size_thresh='default',
+                marker_thresh=None, size_thresh_upper=None,
+                marker_thresh_lower=DEFAULT_MARKER_THRESH_LOWER,
+                marker_thresh_upper=DEFAULT_MARKER_THRESH_UPPER):
     if model in ['DeepLIIF','DeepLIIFKD']:
-        resolution = '40x' if tile_size > 384 else ('20x' if tile_size > 192 else '10x')
+        resolution = infer_resolution_from_tile_size(tile_size, model)
         overlay, refined, scoring = compute_final_results(
             orig, images['Seg'], images.get(find_marker_key(images)), resolution,
-            size_thresh, marker_thresh, size_thresh_upper, seg_thresh)
+            size_thresh, marker_thresh, size_thresh_upper, seg_thresh,
+            marker_thresh_lower=marker_thresh_lower, marker_thresh_upper=marker_thresh_upper)
         processed_images = {}
         processed_images['SegOverlaid'] = Image.fromarray(overlay)
         processed_images['SegRefined'] = Image.fromarray(refined)
         return processed_images, scoring
 
     elif model in ['DeepLIIFExt','SDG']:
-        resolution = '40x' if tile_size > 768 else ('20x' if tile_size > 384 else '10x')
+        resolution = infer_resolution_from_tile_size(tile_size, model)
         processed_images = {}
         scoring = {}
         for img_name in list(images.keys()):
@@ -577,7 +621,8 @@ def postprocess(orig, images, tile_size, model, seg_thresh=120, size_thresh='def
                 seg_img = images[img_name]
                 overlay, refined, score = compute_final_results(
                     orig, images[img_name], None, resolution,
-                    size_thresh, marker_thresh, size_thresh_upper, seg_thresh)
+                    size_thresh, marker_thresh, size_thresh_upper, seg_thresh,
+                    marker_thresh_lower=marker_thresh_lower, marker_thresh_upper=marker_thresh_upper)
     
                 processed_images[img_name + '_Overlaid'] = Image.fromarray(overlay)
                 processed_images[img_name + '_Refined'] = Image.fromarray(refined)
@@ -589,16 +634,19 @@ def postprocess(orig, images, tile_size, model, seg_thresh=120, size_thresh='def
 
 
 def postprocess_with_seg_color(orig, images, tile_size, model, seg_color,
-                               seg_thresh=150, size_thresh='default',
-                               marker_thresh=None, size_thresh_upper=None):
+                               seg_thresh=DEFAULT_SEG_THRESH, size_thresh=DEFAULT_SIZE_THRESH,
+                               marker_thresh=None, size_thresh_upper=None,
+                               marker_thresh_lower=DEFAULT_MARKER_THRESH_LOWER,
+                               marker_thresh_upper=DEFAULT_MARKER_THRESH_UPPER):
     if model not in ['DeepLIIF', 'DeepLIIFKD']:
         raise Exception(f'postprocess_with_seg_color() not implemented for model {model}')
 
-    resolution = '40x' if tile_size > 384 else ('20x' if tile_size > 192 else '10x')
+    resolution = infer_resolution_from_tile_size(tile_size, model)
     marker_key = find_marker_key(images)
     overlay, refined, pos_seg_recolor, scoring = compute_final_results_with_seg_color(
         orig, images['Seg'], images.get(marker_key), seg_color, resolution,
-        size_thresh, marker_thresh, size_thresh_upper, seg_thresh)
+        size_thresh, marker_thresh, size_thresh_upper, seg_thresh,
+        marker_thresh_lower=marker_thresh_lower, marker_thresh_upper=marker_thresh_upper)
     processed_images = {
         'SegOverlaid': Image.fromarray(overlay),
         'SegRefined': Image.fromarray(refined),
@@ -625,6 +673,8 @@ def infer_modalities(img, tile_size, model_dir, eager_mode=False,
         opt = get_opt(model_dir)
         opt.use_dp = False
         #print_options(opt)
+
+    cellseg_runtime = get_cellseg_runtime_config(opt)
     
     # for those with multiple input modalities, find the correct size to calculate overlap_size
     input_no = opt.input_no if hasattr(opt, 'input_no') else 1
@@ -649,13 +699,34 @@ def infer_modalities(img, tile_size, model_dir, eager_mode=False,
     if not hasattr(opt,'seg_gen') or (hasattr(opt,'seg_gen') and opt.seg_gen): # the first condition accounts for old settings of deepliif; the second refers to deepliifext models
         if not mod_only:
             if seg_color is not None:
-                post_images, scoring = postprocess_with_seg_color(img, images, tile_size, opt.model, seg_color)
+                post_images, scoring = postprocess_with_seg_color(
+                    img,
+                    images,
+                    tile_size,
+                    opt.model,
+                    seg_color,
+                    seg_thresh=cellseg_runtime['seg_thresh'],
+                    size_thresh=cellseg_runtime['size_thresh'],
+                    size_thresh_upper=cellseg_runtime['size_thresh_upper'],
+                    marker_thresh_lower=cellseg_runtime['marker_thresh_lower'],
+                    marker_thresh_upper=cellseg_runtime['marker_thresh_upper'],
+                )
                 if seg_only:
                     images = {**post_images}
                 else:
                     images = {**images, **post_images}
             else:
-                post_images, scoring = postprocess(img, images, tile_size, opt.model)
+                post_images, scoring = postprocess(
+                    img,
+                    images,
+                    tile_size,
+                    opt.model,
+                    seg_thresh=cellseg_runtime['seg_thresh'],
+                    size_thresh=cellseg_runtime['size_thresh'],
+                    size_thresh_upper=cellseg_runtime['size_thresh_upper'],
+                    marker_thresh_lower=cellseg_runtime['marker_thresh_lower'],
+                    marker_thresh_upper=cellseg_runtime['marker_thresh_upper'],
+                )
                 images = {**images, **post_images}
                 if seg_only:
                     delete_keys = [k for k in images.keys() if 'Seg' not in k]
@@ -822,7 +893,8 @@ def infer_cells_for_wsi(filename, model_dir, tile_size, region_size=20000, versi
         if print_log:
             print(*args, flush=True)
 
-    resolution = '40x' if tile_size > 384 else ('20x' if tile_size > 192 else '10x')
+    model_name = get_opt(model_dir).model
+    resolution = infer_resolution_from_tile_size(tile_size, model_name)
 
     data = None
     default_marker_thresh, count_marker_thresh = 0, 0
