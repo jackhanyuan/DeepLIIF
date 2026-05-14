@@ -42,15 +42,8 @@ def run(input_path: Path, job_dir: Path, tile_size: int | None = None) -> dict:
 
 
 def _infer_with_oom_retry(img: Image.Image, tile_size: int, opt) -> dict:
-    """Run infer_modalities with OOM fallback to half tile size.
-
-    Resolves seg_weights with the same precedence as the official cli test
-    command: env override (config.SEG_WEIGHTS) > opt.seg_weights set by
-    options/__init__.py during model load > deepliif's None fallback.
-    """
+    """Run infer_modalities with OOM fallback to half tile size."""
     seg_weights = config.SEG_WEIGHTS
-    if seg_weights is None:
-        seg_weights = getattr(opt, 'seg_weights', None)
 
     try:
         images, _ = infer_modalities(img, tile_size, str(config.MODEL_DIR),
