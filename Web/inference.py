@@ -44,17 +44,21 @@ def run(input_path: Path, job_dir: Path, tile_size: int | None = None) -> dict:
 def _infer_with_oom_retry(img: Image.Image, tile_size: int, opt) -> dict:
     """Run infer_modalities with OOM fallback to half tile size.
 
-    Passes config.SEG_WEIGHTS so the aggregated Seg matches deepliif.org's
-    weighting (IHC + Marker dominant) rather than the official Python
-    branch's newer uniform default.
+    Resolves seg_weights with the same precedence as the official cli test
+    command: env override (config.SEG_WEIGHTS) > opt.seg_weights set by
+    options/__init__.py during model load > deepliif's None fallback.
     """
+    seg_weights = config.SEG_WEIGHTS
+    if seg_weights is None:
+        seg_weights = getattr(opt, 'seg_weights', None)
+
     try:
         images, _ = infer_modalities(img, tile_size, str(config.MODEL_DIR),
-                                     opt=opt, seg_weights=config.SEG_WEIGHTS)
+                                     opt=opt, seg_weights=seg_weights)
         return images
     except torch.cuda.OutOfMemoryError:
         torch.cuda.empty_cache()  # 释放显存后以更小的 tile 重试
         smaller = max(64, tile_size // 2)
         images, _ = infer_modalities(img, smaller, str(config.MODEL_DIR),
-                                     opt=opt, seg_weights=config.SEG_WEIGHTS)
+                                     opt=opt, seg_weights=seg_weights)
         return images

@@ -32,7 +32,7 @@ python -m Web.app
 | `DEEPLIIF_WEB_MAX_UPLOAD_MB` | `30` | per-request size cap |
 | `DEEPLIIF_WEB_MAX_EDGE_PX` | `4096` | longest-edge cap |
 | `DEEPLIIF_WEB_MAX_JOBS` | `20` | older jobs are pruned |
-| `DEEPLIIF_WEB_SEG_WEIGHTS` | `0.5,0.0,0.0,0.0,0.5` | weights for the 5 seg generators (IHC, Hema, DAPI, Lap2, Marker). Default matches deepliif.org. Override with comma list, e.g. `0.2,0.2,0.2,0.2,0.2` for uniform weighting (the upstream Python branch default). |
+| `DEEPLIIF_WEB_SEG_WEIGHTS` | unset → uses `opt.seg_weights` from model load | Weights for the 5 seg generators (IHC, Hema, DAPI, Lap2, Marker). When unset, inference inherits the value `deepliif/options/__init__.py` assigns during model load — for `DeepLIIF_Latest_Model` that resolves to `[0.5, 0, 0, 0, 0.5]`, matching deepliif.org. Override with comma list, e.g. `0.25,0.15,0.25,0.1,0.25` (official train-time default) or `0.2,0.2,0.2,0.2,0.2` (uniform). |
 
 ## Tests
 

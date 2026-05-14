@@ -15,8 +15,10 @@ def test_defaults():
     assert isinstance(cfg.JOBS_DIR, Path)
     assert cfg.MODEL_DIR.name == 'DeepLIIF_Latest_Model'
     assert cfg.JOBS_DIR.name == 'jobs'
-    # SEG_WEIGHTS defaults to deepliif.org website weighting
-    assert cfg.SEG_WEIGHTS == [0.5, 0.0, 0.0, 0.0, 0.5]
+    # SEG_WEIGHTS defaults to None: inference.py will then fall back to
+    # opt.seg_weights as resolved by deepliif's options loader, which for
+    # DeepLIIF_Latest_Model yields [0.5, 0, 0, 0, 0.5].
+    assert cfg.SEG_WEIGHTS is None
 
 
 def test_env_overrides(monkeypatch):

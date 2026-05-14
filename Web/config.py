@@ -21,10 +21,10 @@ def _env_path(name: str, default: Path) -> Path:
     return Path(val) if val is not None else default
 
 
-def _env_float_list(name: str, default: list[float]) -> list[float]:
+def _env_float_list_or_none(name: str) -> list[float] | None:
     val = os.environ.get(name)
     if val is None:
-        return default
+        return None
     return [float(x) for x in val.split(',')]
 
 
@@ -41,12 +41,13 @@ MAX_UPLOAD_MB: int = _env_int('DEEPLIIF_WEB_MAX_UPLOAD_MB', 30)
 MAX_EDGE_PX: int = _env_int('DEEPLIIF_WEB_MAX_EDGE_PX', 4096)
 MAX_JOBS: int = _env_int('DEEPLIIF_WEB_MAX_JOBS', 20)
 
-# Seg generator weights [IHC, Hema, DAPI, Lap2, Marker] for the 5
-# segmentation generators (G51..G55). Defaults match deepliif.org's
-# behavior (IHC + Marker dominant) rather than the official Python
-# branch's newer uniform default (1/5 each), so results align with the
-# public website. Override with e.g. DEEPLIIF_WEB_SEG_WEIGHTS=0.2,0.2,0.2,0.2,0.2
-SEG_WEIGHTS: list[float] = _env_float_list(
-    'DEEPLIIF_WEB_SEG_WEIGHTS',
-    [0.5, 0.0, 0.0, 0.0, 0.5],
+# Optional override for seg generator weights [IHC, Hema, DAPI, Lap2, Marker].
+# When None (default), inference.run() falls back to opt.seg_weights as
+# decided by deepliif/options/__init__.py during model load — which for
+# the DeepLIIF_Latest_Model resolves to [0.5, 0, 0, 0, 0.5] (matching
+# deepliif.org). Set this env var as a comma-separated list to override,
+# e.g. DEEPLIIF_WEB_SEG_WEIGHTS=0.25,0.15,0.25,0.1,0.25 for the official
+# train-time default, or 0.2,0.2,0.2,0.2,0.2 for uniform.
+SEG_WEIGHTS: list[float] | None = _env_float_list_or_none(
+    'DEEPLIIF_WEB_SEG_WEIGHTS'
 )
