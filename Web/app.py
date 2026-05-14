@@ -45,7 +45,7 @@ def upload():
     raw = f.read()
     try:
         Image.open(io.BytesIO(raw)).verify()
-    except (UnidentifiedImageError, Exception):
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
         abort(400, 'not a recognized image')
 
     # Re-open after verify (verify consumes the stream).
