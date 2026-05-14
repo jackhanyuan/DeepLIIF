@@ -1,0 +1,152 @@
+/* App-level theme overrides for DeepLIIF Web.
+   The vendored main.css / result.css ship the official component styles
+   but rely on outer-page chrome (body background, button re-themed via
+   .red-button / .blue-button, page <header> wrapper) that we do not
+   include. This file provides those missing defaults so the page is
+   readable without forking the upstream CSS. */
+
+/* Page baseline */
+body {
+    background-color: #f4f6fa;
+    color: #1c2127;
+    min-height: 100vh;
+}
+
+/* Vendored main.css sets button { color: black; background:#313749 } which
+   is unreadable. Override globally; semantic colors keep on the .red/.blue
+   variants. */
+button {
+    color: #fff;
+}
+button:disabled {
+    color: #9aa1ad;
+    cursor: not-allowed;
+}
+
+/* Header bar (used on both index and result pages) */
+header {
+    background: #1c2127;
+    color: #fff;
+    padding: 0.9rem 1.5rem !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+header h1 {
+    color: #fff;
+    margin: 0;
+    font-size: 1.4em;
+}
+header a {
+    color: #fff;
+    text-decoration: underline;
+    font-size: 0.9em;
+}
+
+/* Card-like page surface for result page */
+#main-content.container {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+    padding: 1.5rem 2rem 2.5rem;
+}
+
+/* Score table */
+#score-table {
+    margin: 0 auto;
+    border-collapse: collapse;
+    font-size: 0.95em;
+}
+#score-table td {
+    padding: 4px 14px;
+}
+#score-table tr td:first-child {
+    color: #5a6373;
+    text-align: right;
+}
+#score-table tr td:last-child {
+    font-weight: 500;
+    text-align: left;
+}
+
+/* Slider boxes spacing */
+div.slider-box {
+    margin: 1.75rem auto !important;
+    text-align: center;
+}
+div.slider-box > a.toggle-tooltip,
+div.view-buttons > a.toggle-tooltip {
+    color: #3d6acc;
+    font-weight: 700;
+    margin-right: 0.5em;
+}
+
+/* Slider value tooltip styling (kept dark-on-blue per upstream) */
+div.slider-box output {
+    color: #fff;
+    font-weight: 500;
+}
+
+/* Reset glyphs */
+a.reset {
+    display: inline-block;
+    margin-left: 0.5rem;
+    color: #3d6acc;
+    font-size: 1.1em;
+}
+a.reset:hover {
+    color: #1a4ab8;
+}
+
+/* View / draw mode strip */
+div.view-buttons {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+div.view-buttons label {
+    margin-right: 0.75rem;
+}
+div.view-buttons input[type=radio] {
+    margin-left: 1em;
+}
+
+/* Canvas frame: dark border so the resulting tile area stands out
+   against the white card */
+#canvas-frame {
+    margin: 1.5rem auto 0;
+    padding: 0;
+    background: #2a2f3a;
+    display: inline-block;
+    border: 1px solid #cbd2db;
+}
+#result-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Score values + section text use the body color, not the vendored
+   default which left it inheriting from a missing parent rule */
+#scoring,
+#controls,
+#instructions {
+    color: #1c2127;
+}
+
+/* Download button: prominent CTA */
+#download {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+#download-button {
+    background-color: #005496;
+}
+#download-button:hover:not(:disabled) {
+    background-color: #0070cc;
+}
+
+/* Loading overlay (used by the upload page) */
+#loading {
+    z-index: 1000;
+}

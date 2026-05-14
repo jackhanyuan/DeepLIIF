@@ -5,6 +5,7 @@
   <title>DeepLIIF Result</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
   <header>
@@ -12,7 +13,8 @@
     <a href="/">New upload</a>
   </header>
 
-  <main id="result-content" style="display:block">
+  <main id="main-content" class="container">
+   <div id="result-content" style="display:block">
     <div id="message"></div>
     <div id="preparing-files" style="display:none">Preparing files…</div>
     <div id="processing" style="display:none">Processing…</div>
@@ -133,6 +135,7 @@
     <!-- Stub elements for commented-out getElementById calls in vendored JS -->
     <canvas id="canvas-result" style="display:none" width="1" height="1"></canvas>
     <canvas id="distribution-canvas" style="display:none" width="1" height="1"></canvas>
+   </div>
   </main>
 
   <script>

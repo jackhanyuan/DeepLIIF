@@ -4,23 +4,34 @@
   <meta charset="utf-8">
   <title>DeepLIIF Web</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <style>
-    body { max-width: 720px; margin: 2rem auto; font-family: sans-serif; }
+    /* Upload-page specific layout (overrides the vendored CSS reset
+       so headings + paragraphs have visible spacing) */
+    .upload-card { max-width: 720px; margin: 2rem auto; padding: 2rem;
+                   background: #fff; border-radius: 8px;
+                   box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .upload-card h1 { margin-bottom: 0.6rem; }
+    .upload-card > p { color: #5a6373; margin-bottom: 1.25rem; }
     #file-input { display: none; }
     #drop-area { border: 2px dashed #888; padding: 2rem; text-align: center;
-                 border-radius: 8px; cursor: pointer; }
+                 border-radius: 8px; cursor: pointer; background: #f8f9fb; }
     #drop-area.over { border-color: #3d6acc; background: #eef; }
+    #drop-area p { margin: 0; color: #5a6373; }
     #loading { display: none; position: fixed; inset: 0;
                background: rgba(0,0,0,.5); color: #fff;
                align-items: center; justify-content: center; font-size: 1.5rem; }
     #loading.on { display: flex; }
     .samples { margin-top: 1.5rem; }
+    .samples > p { margin-bottom: 0.4rem; color: #5a6373; }
     .samples label { display: inline-block; margin-right: 1rem; }
     .resolution-picker { margin-top: 1.25rem; }
     .resolution-picker select { margin-left: 0.5rem; padding: 0.25rem 0.5rem; }
+    #submit-btn { margin-top: 1.5rem; }
   </style>
 </head>
 <body>
+ <div class="upload-card">
   <h1>DeepLIIF Web</h1>
   <p>Upload an IHC image (PNG/JPEG/TIFF, up to {{ max_mb }} MB, {{ max_edge }} px per side).</p>
 
@@ -102,5 +113,6 @@
       }
     });
   </script>
+ </div>
 </body>
 </html>
