@@ -32,7 +32,7 @@
     <div id="controls">
       <!-- Segmentation Threshold: present-but-hidden, JS still wires events -->
       <div class="slider-box" style="display:none">
-        <a href="#" class="toggle-tooltip">?</a>
+        <a href="#" class="toggle-tooltip" onclick="toggle('tooltip-probability'); return false;">?</a>
         Segmentation Threshold:
         <div class="range-wrapper">
           <input type="range" min="0" max="254" value="120" id="slider-prob">
@@ -40,12 +40,15 @@
           <input type="number" id="number-prob" style="display:none" value="120">
         </div>
         <a href="#" id="reset-seg-thresh" class="reset">&#x27F2;</a>
-        <div id="tooltip-probability" class="tooltip hide"></div>
+        <div id="tooltip-probability" class="tooltip hide">
+          DeepLIIF generates a probability map for each pixel to belong to positive and negative classes.<br>
+          Adjust this slider to change the threshold used to classify the pixels in the final segmentation.
+        </div>
       </div>
 
       <!-- Size Gating -->
       <div class="slider-box">
-        <a href="#" class="toggle-tooltip">?</a>
+        <a href="#" class="toggle-tooltip" onclick="toggle('tooltip-size'); return false;">?</a>
         Size Gating:
         <!-- 滑条与分布画布共用 #distributionDiv 作为 position:relative 容器,确保对齐 -->
         <div id="distributionDiv">
@@ -58,12 +61,16 @@
           <input type="number" id="number-size-max" style="display:none" value="548">
         </div>
         <a href="#" id="reset-size-thresh" class="reset">&#x27F2;</a>
-        <div id="tooltip-size" class="tooltip hide"></div>
+        <div id="tooltip-size" class="tooltip hide">
+          Adjust the size gating so that smaller cells are omitted from the final segmentation.<br>
+          The distribution of cell sizes is shown above, with a white line indicating the threshold.<br>
+          Click on a cell in the image below to show its size as a yellow line.
+        </div>
       </div>
 
       <!-- Intensity (OD) Threshold -->
       <div class="slider-box">
-        <a href="#" class="toggle-tooltip">?</a>
+        <a href="#" class="toggle-tooltip" onclick="toggle('tooltip-marker'); return false;">?</a>
         Intensity Threshold:
         <div id="markerThreshDiv">
           <div id="markerMinTick" style="display:none;left:0%"></div>
@@ -76,12 +83,16 @@
           <input type="number" id="number-marker" style="display:none" value="120">
         </div>
         <a href="#" id="reset-marker-thresh" class="reset">&#x27F2;</a>
-        <div id="tooltip-marker" class="tooltip hide"></div>
+        <div id="tooltip-marker" class="tooltip hide">
+          Adjust the marker threshold for determining positive cells, overriding the segmentation mask.<br>
+          Cells with a maximum marker value above the rightmost slider will be classified as positive.<br>
+          Cells with a maximum marker value below the leftmost slider will be classified as negative.
+        </div>
       </div>
     </div>
 
     <div class="view-buttons">
-      <a href="#" class="toggle-tooltip">?</a>
+      <a href="#" class="toggle-tooltip" onclick="toggle('tooltip-draw'); return false;">?</a>
       <span class="hideSmall">Draw </span>Mode:
       <input type="radio" id="modeShowSize" name="drawmode" value="on" checked>
       <label for="modeShowSize"><span class="hideSmall">Show </span>Size</label>
@@ -90,7 +101,14 @@
       <input type="radio" id="modeExcludeRegion" name="drawmode" value="on">
       <label for="modeExcludeRegion">Exclude<span class="hideSmall"> Region</span></label>
       <a href="#" id="reset-mask" class="reset">&#x27F2;</a>
-      <div id="tooltip-draw" class="tooltip hide"></div>
+      <div id="tooltip-draw" class="tooltip hide">
+        Options for left mouse button actions:<br>
+        <b><span class="hideSmall">Show </span>Size:</b> Click on a cell to show its size in the distribution above.<br>
+        <b>Select<span class="hideSmall"> Region</span></b>: Draw a lasso selection to include region in results.<br>
+        <b>Exclude<span class="hideSmall"> Region</span></b>: Draw a lasso to exclude region from results.<br>
+        If multiple regions are lassoed, they will be combined for the final result.<br>
+        <b>Note:</b> If drawing on a touch device, start with a horizontal (left/right) motion.
+      </div>
 
       <span class="spacer"></span>
 
@@ -139,8 +157,17 @@
   </main>
 
   <script>
+    // 暴露给 vendored result.js 的全局值(模块脚本通过全局对象访问)
     window.imageID = "{{ job_id }}";
     window.imageNames = { orig: "/orig.png", seg: "/seg.png" };
+    window.inferResolution = {{ infer_resolution }};
+
+    // 官方 deepliif.org 提供的内联工具函数,被 `?` 链接上的 onclick 调用
+    function toggle(elementName) {
+      const element = document.getElementById(elementName);
+      if (!element) return;
+      element.style.display = (getComputedStyle(element).display === 'none') ? 'block' : 'none';
+    }
   </script>
   <script src="{{ url_for('static', filename='script/libs/jszip.min.js') }}"></script>
   <script src="{{ url_for('static', filename='script/libs/FileSaver.min.js') }}"></script>

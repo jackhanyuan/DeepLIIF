@@ -7,6 +7,7 @@ Routes:
   GET  /image/<job_id>/<name>  serve orig.png or seg.png
 """
 import io
+import json
 import threading
 
 from flask import (Flask, abort, redirect, render_template, request,
@@ -78,9 +79,18 @@ def upload():
 
 @app.route('/result/<job_id>')
 def result(job_id):
-    if not (config.JOBS_DIR / job_id).is_dir():
+    job_dir = config.JOBS_DIR / job_id
+    if not job_dir.is_dir():
         abort(404)
-    return render_template('result.html', job_id=job_id)
+    # 推断推理时使用的 resolution (同 deepliif/models/__init__.py 的映射)
+    meta_path = job_dir / 'meta.json'
+    tile_size = config.TILE_SIZE
+    if meta_path.exists():
+        tile_size = json.loads(meta_path.read_text()).get('tile_size', tile_size)
+    infer_resolution = 40 if tile_size > 384 else (20 if tile_size > 192 else 10)
+    return render_template('result.html',
+                           job_id=job_id,
+                           infer_resolution=infer_resolution)
 
 
 @app.route('/image/<job_id>/<name>')
