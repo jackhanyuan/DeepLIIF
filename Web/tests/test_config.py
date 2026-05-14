@@ -15,6 +15,8 @@ def test_defaults():
     assert isinstance(cfg.JOBS_DIR, Path)
     assert cfg.MODEL_DIR.name == 'DeepLIIF_Latest_Model'
     assert cfg.JOBS_DIR.name == 'jobs'
+    # SEG_WEIGHTS defaults to deepliif.org website weighting
+    assert cfg.SEG_WEIGHTS == [0.5, 0.0, 0.0, 0.0, 0.5]
 
 
 def test_env_overrides(monkeypatch):
@@ -22,8 +24,10 @@ def test_env_overrides(monkeypatch):
     monkeypatch.setenv('DEEPLIIF_WEB_MODEL_DIR', '/tmp/fake_model')
     monkeypatch.setenv('DEEPLIIF_WEB_TILE_SIZE', '256')
     monkeypatch.setenv('DEEPLIIF_WEB_MAX_JOBS', '5')
+    monkeypatch.setenv('DEEPLIIF_WEB_SEG_WEIGHTS', '0.2,0.2,0.2,0.2,0.2')
     import Web.config as cfg
     importlib.reload(cfg)
     assert cfg.MODEL_DIR == Path('/tmp/fake_model')
     assert cfg.TILE_SIZE == 256
     assert cfg.MAX_JOBS == 5
+    assert cfg.SEG_WEIGHTS == [0.2, 0.2, 0.2, 0.2, 0.2]

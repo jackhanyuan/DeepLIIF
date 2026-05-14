@@ -32,6 +32,7 @@ python -m Web.app
 | `DEEPLIIF_WEB_MAX_UPLOAD_MB` | `30` | per-request size cap |
 | `DEEPLIIF_WEB_MAX_EDGE_PX` | `4096` | longest-edge cap |
 | `DEEPLIIF_WEB_MAX_JOBS` | `20` | older jobs are pruned |
+| `DEEPLIIF_WEB_SEG_WEIGHTS` | `0.5,0.0,0.0,0.0,0.5` | weights for the 5 seg generators (IHC, Hema, DAPI, Lap2, Marker). Default matches deepliif.org. Override with comma list, e.g. `0.2,0.2,0.2,0.2,0.2` for uniform weighting (the upstream Python branch default). |
 
 ## Tests
 
