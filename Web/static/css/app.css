@@ -110,6 +110,63 @@ div.view-buttons label {
 div.view-buttons input[type=radio] {
     margin-left: 1em;
 }
+div.view-buttons input[type=checkbox] {
+    margin-left: 0.5em;
+}
+
+/* ROI list (JS populates after lasso) */
+#roi-container {
+    max-width: 760px;
+    margin: 1rem auto 0;
+    text-align: left;
+}
+#roi-container:empty {
+    display: none;
+}
+#roi-container > div {
+    padding: 4px 8px;
+    border-bottom: 1px solid #e0e4ea;
+    font-size: 0.95em;
+}
+#roi-container > div.select { background: rgba(0, 110, 200, 0.06); }
+#roi-container > div.exclude { background: rgba(193, 39, 45, 0.06); }
+#roi-container label {
+    margin-left: 0.4em;
+    margin-right: 0.4em;
+}
+#roi-container a.roi-only {
+    color: #3d6acc;
+    margin-right: 0.4em;
+}
+#roi-container a.roi-delete {
+    color: #C1272D;
+    float: right;
+    text-decoration: none;
+}
+
+/* Multiplex IF panel */
+#multiplex {
+    margin-top: 0.75rem;
+}
+#multiplex table {
+    margin: 0.5rem auto;
+    border-collapse: collapse;
+}
+#multiplex table td {
+    padding: 4px 12px;
+}
+#multiplex .double-slider {
+    width: 180px;
+    height: 1em;
+    position: relative;
+    display: inline-block;
+}
+#multiplex .double-slider input[type=range] {
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
 
 /* Canvas frame: dark border so the resulting tile area stands out
    against the white card */

@@ -91,14 +91,15 @@
       </div>
     </div>
 
+    <!-- Draw-mode toolbar (matches deepliif.org structure) -->
     <div class="view-buttons">
       <a href="#" class="toggle-tooltip" onclick="toggle('tooltip-draw'); return false;">?</a>
       <span class="hideSmall">Draw </span>Mode:
-      <input type="radio" id="modeShowSize" name="drawmode" value="on" checked>
+      <input type="radio" id="modeShowSize" name="drawmode" checked>
       <label for="modeShowSize"><span class="hideSmall">Show </span>Size</label>
-      <input type="radio" id="modeSelectRegion" name="drawmode" value="on">
+      <input type="radio" id="modeSelectRegion" name="drawmode">
       <label for="modeSelectRegion">Select<span class="hideSmall"> Region</span></label>
-      <input type="radio" id="modeExcludeRegion" name="drawmode" value="on">
+      <input type="radio" id="modeExcludeRegion" name="drawmode">
       <label for="modeExcludeRegion">Exclude<span class="hideSmall"> Region</span></label>
       <a href="#" id="reset-mask" class="reset">&#x27F2;</a>
       <div id="tooltip-draw" class="tooltip hide">
@@ -109,50 +110,77 @@
         If multiple regions are lassoed, they will be combined for the final result.<br>
         <b>Note:</b> If drawing on a touch device, start with a horizontal (left/right) motion.
       </div>
-
-      <span class="spacer"></span>
-
-      View:
-      <input type="radio" id="viewOriginal" name="view" value="on" checked>
-      <label for="viewOriginal">IHC</label>
-      <input type="radio" id="viewMultiplex" name="view" value="on">
-      <label for="viewMultiplex"><span class="hideSmall">Show </span>Segmentation</label>
-
-      <span class="spacer"></span>
-
-      <input type="checkbox" id="showDapi" style="display:none">
-      <input type="checkbox" id="showLap2" style="display:none">
-      <input type="checkbox" id="showMarker" style="display:none">
-      <input type="checkbox" id="showOverlay" checked style="display:none">
-    </div>
-
-    <div id="multiplex-options" style="display:none">
-      <input type="range" id="dapiMin" min="0" max="255" value="0">
-      <input type="range" id="dapiMax" min="0" max="255" value="255">
-      <a href="#" id="reset-dapi-range" class="reset">&#x27F2;</a>
-      <input type="range" id="lap2Min" min="0" max="255" value="0">
-      <input type="range" id="lap2Max" min="0" max="255" value="255">
-      <a href="#" id="reset-lap2-range" class="reset">&#x27F2;</a>
-      <input type="range" id="markerMin" min="0" max="255" value="0">
-      <input type="range" id="markerMax" min="0" max="255" value="255">
-      <a href="#" id="reset-marker-range" class="reset">&#x27F2;</a>
     </div>
 
     <div id="canvas-frame">
       <canvas id="result-canvas" width="100" height="100"></canvas>
-      <div id="multiplex-cover" style="display:none"></div>
-      <div id="roi-container" style="display:none">
-        <canvas id="roi"></canvas>
+    </div>
+
+    <!-- JS populates region entries here after lasso draws -->
+    <div id="roi-container"></div>
+
+    <!-- View toggle + multiplex IF panel -->
+    <div id="multiplex">
+      <div class="view-buttons">
+        <!--View:-->
+        <input type="radio" id="viewOriginal" name="view" checked style="display:none">
+        <label for="viewOriginal" style="display:none">Original</label>
+        <input type="radio" id="viewMultiplex" name="view" style="display:none">
+        <label for="viewMultiplex" style="display:none">Multiplex</label>
+        <input type="checkbox" id="showOverlay" name="showOverlay" checked>
+        <label for="showOverlay"><span class="hideSmall">Show </span>Segmentation</label>
+      </div>
+      <div id="multiplex-options" style="display:none">
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <input type="checkbox" id="showMarker" name="showMarker" checked>
+                <label for="showMarker">Marker</label>
+              </td>
+              <td>
+                <div class="double-slider">
+                  <input type="range" min="0" max="255" value="0" id="markerMin">
+                  <input type="range" min="0" max="255" value="255" id="markerMax" class="top">
+                </div>
+              </td>
+              <td>&nbsp;<a href="#" id="reset-marker-range" class="reset">&#x27F2;</a></td>
+            </tr>
+            <tr>
+              <td>
+                <input type="checkbox" id="showDapi" name="showDapi" checked>
+                <label for="showDapi">DAPI</label>
+              </td>
+              <td>
+                <div class="double-slider">
+                  <input type="range" min="0" max="255" value="0" id="dapiMin">
+                  <input type="range" min="0" max="255" value="255" id="dapiMax" class="top">
+                </div>
+              </td>
+              <td>&nbsp;<a href="#" id="reset-dapi-range" class="reset">&#x27F2;</a></td>
+            </tr>
+            <tr>
+              <td>
+                <input type="checkbox" id="showLap2" name="showLap2" checked>
+                <label for="showLap2">Lap2</label>
+              </td>
+              <td>
+                <div class="double-slider">
+                  <input type="range" min="0" max="255" value="0" id="lap2Min">
+                  <input type="range" min="0" max="255" value="255" id="lap2Max" class="top">
+                </div>
+              </td>
+              <td>&nbsp;<a href="#" id="reset-lap2-range" class="reset">&#x27F2;</a></td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="multiplex-cover" style="display:block"></div>
       </div>
     </div>
 
     <div id="download" class="widget-buttons">
       <button id="download-button">Download</button>
     </div>
-
-    <!-- Stub elements for commented-out getElementById calls in vendored JS -->
-    <canvas id="canvas-result" style="display:none" width="1" height="1"></canvas>
-    <canvas id="distribution-canvas" style="display:none" width="1" height="1"></canvas>
    </div>
   </main>
 
