@@ -6,11 +6,17 @@
    readable without forking the upstream CSS. */
 
 /* Page baseline */
+html, body {
+    /* 防止内部任何宽度溢出造成横向滚动 */
+    max-width: 100vw;
+    overflow-x: hidden;
+}
 body {
     background-color: #f4f6fa;
     color: #1c2127;
     min-height: 100vh;
 }
+*, *::before, *::after { box-sizing: border-box; }
 
 /* Vendored main.css sets button { color: black; background:#313749 } which
    is unreadable. Override globally; semantic colors keep on the .red/.blue
@@ -176,18 +182,32 @@ div.view-buttons input[type=checkbox] {
 }
 
 /* Canvas frame: dark border so the resulting tile area stands out
-   against the white card */
+   against the white card. Keep it a normal block so the inner canvas
+   (whose intrinsic width is the original image's pixel width) scales
+   down to fit the container instead of pushing horizontal scroll. */
 #canvas-frame {
     margin: 1.5rem auto 0;
     padding: 0;
     background: #2a2f3a;
-    display: inline-block;
+    display: block;
     border: 1px solid #cbd2db;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
 }
 #result-canvas {
     display: block;
-    max-width: 100%;
-    height: auto;
+    /* override the JS-set inline max-width:<imgWidth>px so the canvas
+       can shrink below the original image size on narrow viewports */
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Header should not get squeezed by overflow either */
+header {
+    box-sizing: border-box;
+    width: 100%;
 }
 
 /* Score values + section text use the body color, not the vendored
