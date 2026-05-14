@@ -43,6 +43,13 @@ header a {
     text-decoration: underline;
     font-size: 0.9em;
 }
+header a.header-home {
+    text-decoration: none;
+    cursor: pointer;
+}
+header a.header-home:hover h1 {
+    opacity: 0.85;
+}
 
 /* Card-like page surface for result page */
 #main-content.container {
