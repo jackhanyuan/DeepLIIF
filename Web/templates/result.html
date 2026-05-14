@@ -45,12 +45,13 @@
       <div class="slider-box">
         <a href="#" class="toggle-tooltip">?</a>
         Size Gating:
+        <!-- 滑条与分布画布共用 #distributionDiv 作为 position:relative 容器,确保对齐 -->
         <div id="distributionDiv">
           <canvas id="size-distribution-canvas" width="572" height="55"></canvas>
-        </div>
-        <div class="range-wrapper double-slider">
           <input type="range" id="slider-size-min" min="0" max="50" step="any" value="8.67">
           <input type="range" id="slider-size-max" class="top" min="0" max="50" step="any" value="23.4">
+          <output id="slider-size-min-output" style="display:none">75</output>
+          <output id="slider-size-max-output" style="display:none">548</output>
           <input type="number" id="number-size-min" style="display:none" value="75">
           <input type="number" id="number-size-max" style="display:none" value="548">
         </div>
@@ -68,6 +69,8 @@
           <canvas id="marker-histogram-canvas" width="530" height="20"></canvas>
           <input type="range" id="slider-marker-lower" min="0" max="255" value="24">
           <input type="range" id="slider-marker-upper" class="top" min="0" max="255" value="255">
+          <output id="slider-marker-lower-output" style="display:none">24</output>
+          <output id="slider-marker-upper-output" style="display:none">255</output>
           <input type="number" id="number-marker" style="display:none" value="120">
         </div>
         <a href="#" id="reset-marker-thresh" class="reset">&#x27F2;</a>

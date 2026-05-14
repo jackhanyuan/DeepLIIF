@@ -8,7 +8,6 @@ Routes:
 """
 import io
 import threading
-from pathlib import Path
 
 from flask import (Flask, abort, redirect, render_template, request,
                    send_from_directory, url_for)
@@ -22,9 +21,12 @@ app.config['MAX_CONTENT_LENGTH'] = config.MAX_UPLOAD_MB * 1024 * 1024
 _INFERENCE_LOCK = threading.Lock()
 _ALLOWED_IMAGE_NAMES = {'orig.png', 'seg.png'}
 
+# 分辨率到 DeepLIIF tile_size 的映射(deepliif/models/__init__.py 的 resolution 推断)
+_RESOLUTION_TILE_SIZE = {'10': 128, '20': 256, '40': 512}
+
 
 @app.errorhandler(413)
-def _too_large(_e):
+def too_large(_e):
     return ('Image exceeds the configured upload size limit.', 413)
 
 
@@ -55,6 +57,10 @@ def upload():
     if max(img.size) > config.MAX_EDGE_PX:
         abort(413)
 
+    # 解析分辨率选项,缺省 40X(tile_size=512)
+    resolution = request.form.get('resolution', '40')
+    tile_size = _RESOLUTION_TILE_SIZE.get(resolution, config.TILE_SIZE)
+
     # Create the job dir and write the input.
     job_dir = jobs.create_job_dir(config.JOBS_DIR)
     input_path = job_dir / 'input.png'
@@ -62,7 +68,7 @@ def upload():
 
     # Serialize inference: one GPU, one job at a time.
     with _INFERENCE_LOCK:
-        inference.run(input_path, job_dir)
+        inference.run(input_path, job_dir, tile_size=tile_size)
 
     # Keep storage bounded.
     jobs.prune_jobs(config.JOBS_DIR, keep=config.MAX_JOBS)

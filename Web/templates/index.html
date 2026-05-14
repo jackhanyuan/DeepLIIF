@@ -16,6 +16,8 @@
     #loading.on { display: flex; }
     .samples { margin-top: 1.5rem; }
     .samples label { display: inline-block; margin-right: 1rem; }
+    .resolution-picker { margin-top: 1.25rem; }
+    .resolution-picker select { margin-left: 0.5rem; padding: 0.25rem 0.5rem; }
   </style>
 </head>
 <body>
@@ -34,6 +36,15 @@
       <label><input type="radio" name="sample" value="ROI_1.png"> ROI_1</label>
       <label><input type="radio" name="sample" value="ROI_7.png"> ROI_7</label>
       <label><input type="radio" name="sample" value="ROI_46.png"> ROI_46</label>
+    </div>
+
+    <div class="resolution-picker">
+      <label for="upload-resolution">Image resolution:</label>
+      <select name="resolution" id="upload-resolution">
+        <option value="10">10X (1 μm/pixel)</option>
+        <option value="20">20X (0.5 μm/pixel)</option>
+        <option value="40" selected>40X (0.25 μm/pixel)</option>
+      </select>
     </div>
 
     <button id="submit-btn" type="submit" disabled>Run inference</button>
