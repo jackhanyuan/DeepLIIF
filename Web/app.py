@@ -30,7 +30,9 @@ def _too_large(_e):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html',
+                           max_mb=config.MAX_UPLOAD_MB,
+                           max_edge=config.MAX_EDGE_PX)
 
 
 @app.route('/upload', methods=['POST'])

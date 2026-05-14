@@ -1,9 +1,88 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>DeepLIIF Web</title></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DeepLIIF Web</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <style>
+    body { max-width: 720px; margin: 2rem auto; font-family: sans-serif; }
+    #drop-area { border: 2px dashed #888; padding: 2rem; text-align: center;
+                 border-radius: 8px; cursor: pointer; }
+    #drop-area.over { border-color: #3d6acc; background: #eef; }
+    #loading { display: none; position: fixed; inset: 0;
+               background: rgba(0,0,0,.5); color: #fff;
+               align-items: center; justify-content: center; font-size: 1.5rem; }
+    #loading.on { display: flex; }
+    .samples { margin-top: 1.5rem; }
+    .samples label { display: inline-block; margin-right: 1rem; }
+  </style>
+</head>
 <body>
-<h1>DeepLIIF</h1>
-<form method="post" action="/upload" enctype="multipart/form-data">
-  <input type="file" name="file" accept="image/png,image/jpeg,image/tiff">
-  <button type="submit">Upload</button>
-</form>
-</body></html>
+  <h1>DeepLIIF Web</h1>
+  <p>Upload an IHC image (PNG/JPEG/TIFF, up to {{ max_mb }} MB, {{ max_edge }} px per side).</p>
+
+  <form id="upload-form" method="post" action="/upload" enctype="multipart/form-data">
+    <div id="drop-area">
+      <input id="file-input" type="file" name="file"
+             accept="image/png,image/jpeg,image/tiff">
+      <p>or drag a file here</p>
+    </div>
+
+    <div class="samples">
+      <p>Or pick a sample:</p>
+      <label><input type="radio" name="sample" value="ROI_1.png"> ROI_1</label>
+      <label><input type="radio" name="sample" value="ROI_7.png"> ROI_7</label>
+      <label><input type="radio" name="sample" value="ROI_46.png"> ROI_46</label>
+    </div>
+
+    <button id="submit-btn" type="submit" disabled>Run inference</button>
+  </form>
+
+  <div id="loading"><span>Processing…</span></div>
+
+  <script>
+    const form = document.getElementById('upload-form');
+    const drop = document.getElementById('drop-area');
+    const fileInput = document.getElementById('file-input');
+    const submitBtn = document.getElementById('submit-btn');
+    const loading = document.getElementById('loading');
+
+    function refreshSubmit() {
+      const hasFile = fileInput.files && fileInput.files.length > 0;
+      const hasSample = !!document.querySelector('input[name=sample]:checked');
+      submitBtn.disabled = !(hasFile || hasSample);
+    }
+    fileInput.addEventListener('change', refreshSubmit);
+    document.querySelectorAll('input[name=sample]').forEach(r =>
+      r.addEventListener('change', refreshSubmit));
+
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drop.classList.remove('over');
+      if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        refreshSubmit();
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      const sample = document.querySelector('input[name=sample]:checked');
+      if (sample && fileInput.files.length === 0) {
+        // Convert sample selection to a file fetch then submit.
+        e.preventDefault();
+        loading.classList.add('on');
+        const res = await fetch('/static/samples/' + sample.value);
+        const blob = await res.blob();
+        const dt = new DataTransfer();
+        dt.items.add(new File([blob], sample.value, {type: blob.type}));
+        fileInput.files = dt.files;
+        form.submit();
+      } else {
+        loading.classList.add('on');
+      }
+    });
+  </script>
+</body>
+</html>
