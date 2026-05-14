@@ -1,11 +1,143 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>DeepLIIF Result</title></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DeepLIIF Result</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+</head>
 <body>
-<script>
-  window.imageID = "{{ job_id }}";
-  window.imageNames = { orig: "/orig.png", seg: "/seg.png" };
-</script>
-<canvas id="result-canvas"></canvas>
-<input id="slider-marker-lower" type="range">
-<input id="slider-size-min" type="range">
-</body></html>
+  <header>
+    <h1>DeepLIIF Results</h1>
+    <a href="/">New upload</a>
+  </header>
+
+  <main id="result-content" style="display:block">
+    <div id="message"></div>
+    <div id="preparing-files" style="display:none">Preparing files…</div>
+    <div id="processing" style="display:none">Processing…</div>
+
+    <div id="scoring">
+      <table id="score-table">
+        <tbody>
+          <tr><td>Number of total nuclei:</td><td id="scoring-num-total">0</td></tr>
+          <tr><td>Number of IHC+ cells:</td><td id="scoring-num-pos">0</td></tr>
+          <tr><td>Percentage of IHC+ cells:</td><td id="scoring-percentage">0 %</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="controls">
+      <!-- Segmentation Threshold: present-but-hidden, JS still wires events -->
+      <div class="slider-box" style="display:none">
+        <a href="#" class="toggle-tooltip">?</a>
+        Segmentation Threshold:
+        <div class="range-wrapper">
+          <input type="range" min="0" max="254" value="120" id="slider-prob">
+          <output id="slider-prob-output" style="display:none">120</output>
+          <input type="number" id="number-prob" style="display:none" value="120">
+        </div>
+        <a href="#" id="reset-seg-thresh" class="reset">&#x27F2;</a>
+        <div id="tooltip-probability" class="tooltip hide"></div>
+      </div>
+
+      <!-- Size Gating -->
+      <div class="slider-box">
+        <a href="#" class="toggle-tooltip">?</a>
+        Size Gating:
+        <div id="distributionDiv">
+          <canvas id="size-distribution-canvas" width="572" height="55"></canvas>
+        </div>
+        <div class="range-wrapper double-slider">
+          <input type="range" id="slider-size-min" min="0" max="50" step="any" value="8.67">
+          <input type="range" id="slider-size-max" class="top" min="0" max="50" step="any" value="23.4">
+          <input type="number" id="number-size-min" style="display:none" value="75">
+          <input type="number" id="number-size-max" style="display:none" value="548">
+        </div>
+        <a href="#" id="reset-size-thresh" class="reset">&#x27F2;</a>
+        <div id="tooltip-size" class="tooltip hide"></div>
+      </div>
+
+      <!-- Intensity (OD) Threshold -->
+      <div class="slider-box">
+        <a href="#" class="toggle-tooltip">?</a>
+        Intensity Threshold:
+        <div id="markerThreshDiv">
+          <div id="markerMinTick" style="display:none;left:0%"></div>
+          <div id="markerMaxTick" style="display:none;right:0%"></div>
+          <canvas id="marker-histogram-canvas" width="530" height="20"></canvas>
+          <input type="range" id="slider-marker-lower" min="0" max="255" value="24">
+          <input type="range" id="slider-marker-upper" class="top" min="0" max="255" value="255">
+          <input type="number" id="number-marker" style="display:none" value="120">
+        </div>
+        <a href="#" id="reset-marker-thresh" class="reset">&#x27F2;</a>
+        <div id="tooltip-marker" class="tooltip hide"></div>
+      </div>
+    </div>
+
+    <div class="view-buttons">
+      <a href="#" class="toggle-tooltip">?</a>
+      <span class="hideSmall">Draw </span>Mode:
+      <input type="radio" id="modeShowSize" name="drawmode" value="on" checked>
+      <label for="modeShowSize"><span class="hideSmall">Show </span>Size</label>
+      <input type="radio" id="modeSelectRegion" name="drawmode" value="on">
+      <label for="modeSelectRegion">Select<span class="hideSmall"> Region</span></label>
+      <input type="radio" id="modeExcludeRegion" name="drawmode" value="on">
+      <label for="modeExcludeRegion">Exclude<span class="hideSmall"> Region</span></label>
+      <a href="#" id="reset-mask" class="reset">&#x27F2;</a>
+      <div id="tooltip-draw" class="tooltip hide"></div>
+
+      <span class="spacer"></span>
+
+      View:
+      <input type="radio" id="viewOriginal" name="view" value="on" checked>
+      <label for="viewOriginal">IHC</label>
+      <input type="radio" id="viewMultiplex" name="view" value="on">
+      <label for="viewMultiplex"><span class="hideSmall">Show </span>Segmentation</label>
+
+      <span class="spacer"></span>
+
+      <input type="checkbox" id="showDapi" style="display:none">
+      <input type="checkbox" id="showLap2" style="display:none">
+      <input type="checkbox" id="showMarker" style="display:none">
+      <input type="checkbox" id="showOverlay" checked style="display:none">
+    </div>
+
+    <div id="multiplex-options" style="display:none">
+      <input type="range" id="dapiMin" min="0" max="255" value="0">
+      <input type="range" id="dapiMax" min="0" max="255" value="255">
+      <a href="#" id="reset-dapi-range" class="reset">&#x27F2;</a>
+      <input type="range" id="lap2Min" min="0" max="255" value="0">
+      <input type="range" id="lap2Max" min="0" max="255" value="255">
+      <a href="#" id="reset-lap2-range" class="reset">&#x27F2;</a>
+      <input type="range" id="markerMin" min="0" max="255" value="0">
+      <input type="range" id="markerMax" min="0" max="255" value="255">
+      <a href="#" id="reset-marker-range" class="reset">&#x27F2;</a>
+    </div>
+
+    <div id="canvas-frame">
+      <canvas id="result-canvas" width="100" height="100"></canvas>
+      <div id="multiplex-cover" style="display:none"></div>
+      <div id="roi-container" style="display:none">
+        <canvas id="roi"></canvas>
+      </div>
+    </div>
+
+    <div id="download" class="widget-buttons">
+      <button id="download-button">Download</button>
+    </div>
+
+    <!-- Stub elements for commented-out getElementById calls in vendored JS -->
+    <canvas id="canvas-result" style="display:none" width="1" height="1"></canvas>
+    <canvas id="distribution-canvas" style="display:none" width="1" height="1"></canvas>
+  </main>
+
+  <script>
+    window.imageID = "{{ job_id }}";
+    window.imageNames = { orig: "/orig.png", seg: "/seg.png" };
+  </script>
+  <script src="{{ url_for('static', filename='script/libs/jszip.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='script/libs/FileSaver.min.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='script/result.js') }}"></script>
+</body>
+</html>
