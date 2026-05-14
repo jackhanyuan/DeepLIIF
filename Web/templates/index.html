@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <style>
     body { max-width: 720px; margin: 2rem auto; font-family: sans-serif; }
+    #file-input { display: none; }
     #drop-area { border: 2px dashed #888; padding: 2rem; text-align: center;
                  border-radius: 8px; cursor: pointer; }
     #drop-area.over { border-color: #3d6acc; background: #eef; }
@@ -53,6 +54,7 @@
       submitBtn.disabled = !(hasFile || hasSample);
     }
     fileInput.addEventListener('change', refreshSubmit);
+    drop.addEventListener('click', () => fileInput.click());
     document.querySelectorAll('input[name=sample]').forEach(r =>
       r.addEventListener('change', refreshSubmit));
 
@@ -70,15 +72,20 @@
     form.addEventListener('submit', async (e) => {
       const sample = document.querySelector('input[name=sample]:checked');
       if (sample && fileInput.files.length === 0) {
-        // Convert sample selection to a file fetch then submit.
         e.preventDefault();
         loading.classList.add('on');
-        const res = await fetch('/static/samples/' + sample.value);
-        const blob = await res.blob();
-        const dt = new DataTransfer();
-        dt.items.add(new File([blob], sample.value, {type: blob.type}));
-        fileInput.files = dt.files;
-        form.submit();
+        try {
+          const res = await fetch('/static/samples/' + sample.value);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const blob = await res.blob();
+          const dt = new DataTransfer();
+          dt.items.add(new File([blob], sample.value, {type: blob.type}));
+          fileInput.files = dt.files;
+          form.submit();
+        } catch (err) {
+          loading.classList.remove('on');
+          alert('Failed to load sample: ' + err.message);
+        }
       } else {
         loading.classList.add('on');
       }
