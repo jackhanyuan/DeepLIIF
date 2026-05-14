@@ -15,9 +15,25 @@
     .upload-card > p { color: #5a6373; margin-bottom: 1.25rem; }
     #file-input { display: none; }
     #drop-area { border: 2px dashed #888; padding: 2rem; text-align: center;
-                 border-radius: 8px; cursor: pointer; background: #f8f9fb; }
+                 border-radius: 8px; cursor: pointer; background: #f8f9fb;
+                 position: relative; }
     #drop-area.over { border-color: #3d6acc; background: #eef; }
     #drop-area p { margin: 0; color: #5a6373; }
+    /* When a file/sample is chosen, the placeholder text hides and the
+       preview image takes the slot */
+    #drop-area.has-preview { padding: 0.75rem; background: #fff; border-style: solid;
+                             border-color: #3d6acc; }
+    #drop-area.has-preview .drop-placeholder { display: none; }
+    #preview { display: none; max-width: 100%; max-height: 320px;
+               width: auto; height: auto; border-radius: 4px;
+               margin: 0 auto; }
+    #drop-area.has-preview #preview { display: block; }
+    .preview-meta { margin-top: 0.5rem; color: #5a6373; font-size: 0.85em; }
+    #drop-area.has-preview .preview-meta { display: block; }
+    .preview-meta { display: none; }
+    .clear-preview { display: none; margin-left: 0.5em; color: #C1272D;
+                     cursor: pointer; text-decoration: underline; }
+    #drop-area.has-preview .clear-preview { display: inline; }
     #loading { display: none; position: fixed; inset: 0;
                background: rgba(0,0,0,.5); color: #fff;
                align-items: center; justify-content: center; font-size: 1.5rem; }
@@ -39,7 +55,12 @@
     <div id="drop-area">
       <input id="file-input" type="file" name="file"
              accept="image/png,image/jpeg,image/tiff">
-      <p>or drag a file here</p>
+      <p class="drop-placeholder">Click to choose an image, or drag a file here</p>
+      <img id="preview" alt="preview">
+      <div class="preview-meta">
+        <span id="preview-name"></span>
+        <a href="#" class="clear-preview">remove</a>
+      </div>
     </div>
 
     <div class="samples">
@@ -69,16 +90,61 @@
     const fileInput = document.getElementById('file-input');
     const submitBtn = document.getElementById('submit-btn');
     const loading = document.getElementById('loading');
+    const preview = document.getElementById('preview');
+    const previewName = document.getElementById('preview-name');
+    const clearLink = document.querySelector('.clear-preview');
+
+    function showPreview(src, name) {
+      preview.src = src;
+      previewName.textContent = name || '';
+      drop.classList.add('has-preview');
+    }
+
+    function clearPreview() {
+      // revoke previous object URL to avoid leaking
+      if (preview.src && preview.src.startsWith('blob:')) URL.revokeObjectURL(preview.src);
+      preview.removeAttribute('src');
+      previewName.textContent = '';
+      drop.classList.remove('has-preview');
+      fileInput.value = '';
+      document.querySelectorAll('input[name=sample]').forEach(r => r.checked = false);
+      refreshSubmit();
+    }
 
     function refreshSubmit() {
       const hasFile = fileInput.files && fileInput.files.length > 0;
       const hasSample = !!document.querySelector('input[name=sample]:checked');
       submitBtn.disabled = !(hasFile || hasSample);
     }
-    fileInput.addEventListener('change', refreshSubmit);
-    drop.addEventListener('click', () => fileInput.click());
-    document.querySelectorAll('input[name=sample]').forEach(r =>
-      r.addEventListener('change', refreshSubmit));
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files.length > 0) {
+        // selecting a real file clears any pending sample choice
+        document.querySelectorAll('input[name=sample]').forEach(r => r.checked = false);
+        const f = fileInput.files[0];
+        showPreview(URL.createObjectURL(f), f.name);
+      }
+      refreshSubmit();
+    });
+
+    drop.addEventListener('click', (e) => {
+      // ignore clicks on the remove link (it has its own handler)
+      if (e.target.classList.contains('clear-preview')) return;
+      fileInput.click();
+    });
+
+    document.querySelectorAll('input[name=sample]').forEach(r => {
+      r.addEventListener('change', () => {
+        if (r.checked) {
+          // sample selection trumps any previously chosen file
+          fileInput.value = '';
+          showPreview('/static/samples/' + r.value, r.value);
+        }
+        refreshSubmit();
+      });
+    });
+
+    clearLink.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearPreview(); });
 
     drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
     drop.addEventListener('dragleave', () => drop.classList.remove('over'));
@@ -87,7 +153,8 @@
       drop.classList.remove('over');
       if (e.dataTransfer.files.length > 0) {
         fileInput.files = e.dataTransfer.files;
-        refreshSubmit();
+        // trigger the file-input change handler manually so preview updates
+        fileInput.dispatchEvent(new Event('change'));
       }
     });
 
