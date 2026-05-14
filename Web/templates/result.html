@@ -1,0 +1,11 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>DeepLIIF Result</title></head>
+<body>
+<script>
+  window.imageID = "{{ job_id }}";
+  window.imageNames = { orig: "/orig.png", seg: "/seg.png" };
+</script>
+<canvas id="result-canvas"></canvas>
+<input id="slider-marker-lower" type="range">
+<input id="slider-size-min" type="range">
+</body></html>

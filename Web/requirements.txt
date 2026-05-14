@@ -1,0 +1,3 @@
+flask>=3.0
+pillow>=10
+# deepliif and torch come from the parent worktree's environment.
