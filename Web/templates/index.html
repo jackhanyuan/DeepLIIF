@@ -8,7 +8,7 @@
   <style>
     /* Upload-page specific layout (overrides the vendored CSS reset
        so headings + paragraphs have visible spacing) */
-    .upload-card { max-width: min(1280px, 95vw); margin: 1rem auto; padding: 1.5rem 2rem;
+    .upload-card { max-width: 720px; margin: 2rem auto; padding: 2rem;
                    background: #fff; border-radius: 8px;
                    box-shadow: 0 1px 4px rgba(0,0,0,.06); }
     .upload-card h1 { margin-bottom: 0.6rem; }
@@ -24,12 +24,18 @@
     #drop-area.has-preview { padding: 0.75rem; background: #fff; border-style: solid;
                              border-color: #3d6acc; }
     #drop-area.has-preview .drop-placeholder { display: none; }
-    /* 预览图片:在卡片内尽量铺大,长边贴满较小的那条边界 */
-    #preview { display: none; max-width: 100%; max-height: 80vh;
+    /* 预览态:drop-area 变成固定高的容器,图片用 contain 铺满 */
+    #drop-area.has-preview {
+        padding: 0.5rem;
+        min-height: 70vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    #preview { display: none; max-width: 100%; max-height: 100%;
                width: auto; height: auto; border-radius: 4px;
-               margin: 0 auto; object-fit: contain; }
-    /* 进入预览态时缩小 padding 与多余空白,让图片占更多视野 */
-    #drop-area.has-preview { padding: 0.25rem; min-height: 0; }
+               object-fit: contain; flex: 1 1 auto; min-height: 0; }
     #drop-area.has-preview #preview { display: block; }
     .preview-meta { margin-top: 0.5rem; color: #5a6373; font-size: 0.85em; }
     #drop-area.has-preview .preview-meta { display: block; }
