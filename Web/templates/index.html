@@ -23,10 +23,11 @@
     #drop-area.has-preview { padding: 0.75rem; background: #fff; border-style: solid;
                              border-color: #3d6acc; }
     #drop-area.has-preview .drop-placeholder { display: none; }
-    /* 预览态:drop-area 变成固定高的容器,图片用 contain 主动铺满 */
+    /* 预览态:drop-area 高度 ≈ 宽度(正方形),图片用 contain 主动铺满 */
     #drop-area.has-preview {
         padding: 0.5rem;
-        height: 70vh;
+        aspect-ratio: 1 / 1;
+        height: auto;
         display: flex;
         flex-direction: column;
     }
