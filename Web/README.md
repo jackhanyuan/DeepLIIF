@@ -59,6 +59,15 @@ directory or sample image isn't present.
 8. **View** toggle switches between IHC and Segmentation overlays.
 9. **Download** button packages PNGs into a zip.
 
+## Known limitations
+
+- **Slider state is not persisted across page refreshes.** The vendored
+  viewer JS calls `/result/state/<id>` to save viewer state on the
+  official deepliif.org backend. We do not implement that route, so
+  reloading the result page resets all slider positions to defaults.
+  Re-run the inference (or just keep the page open) if you need to
+  compare different threshold settings.
+
 ## Architecture
 
 See `docs/superpowers/specs/2026-05-14-deepliif-web-design.md`.
