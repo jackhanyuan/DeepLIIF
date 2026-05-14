@@ -137,6 +137,11 @@ dmypy.json
 /model-server/
 /results/*
 
+# DeepLIIF Web subproject (local fork additions)
+Web/jobs/
+DeepLIIF_Latest_Model/
+DeepLIIF_Latest_Model.zip
+
 **/.ipynb_checkpoints/*
 **/.virtual_documents/*
 assets/.METADATA/job_run.*
