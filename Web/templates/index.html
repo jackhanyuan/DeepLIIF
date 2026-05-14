@@ -8,10 +8,9 @@
   <style>
     /* Upload-page specific layout (overrides the vendored CSS reset
        so headings + paragraphs have visible spacing) */
-    .upload-card { max-width: 720px; margin: 2rem auto; padding: 2rem;
+    .upload-card { max-width: 720px; margin: 1.5rem auto; padding: 2rem;
                    background: #fff; border-radius: 8px;
                    box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-    .upload-card h1 { margin-bottom: 0.6rem; }
     .upload-card > p { color: #5a6373; margin-bottom: 1.25rem; }
     #file-input { display: none; }
     #drop-area { border: 2px dashed #888; padding: 2rem; text-align: center;
@@ -64,8 +63,11 @@
   </style>
 </head>
 <body>
+  <header>
+    <a href="/" class="header-home"><h1>DeepLIIF Web</h1></a>
+    <a href="https://github.com/nadeemlab/DeepLIIF" target="_blank" rel="noopener">GitHub</a>
+  </header>
  <div class="upload-card">
-  <h1>DeepLIIF Web</h1>
   <p>Upload an IHC image (PNG/JPEG/TIFF, up to {{ max_mb }} MB, {{ max_edge }} px per side).</p>
 
   <form id="upload-form" method="post" action="/upload" enctype="multipart/form-data">
