@@ -233,6 +233,15 @@ div.slider-box output {
     height: auto;
 }
 
+#canvas-caption {
+    margin: 0.5em auto 0;
+    width: 95%;
+    text-align: center;
+    color: #5a6373;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
 #canvas-cover {
     position: absolute;
     top: 0;

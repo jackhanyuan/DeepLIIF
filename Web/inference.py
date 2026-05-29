@@ -12,10 +12,13 @@ from deepliif.models import get_opt, infer_modalities
 from . import config
 
 
-def run(input_path: Path, job_dir: Path, tile_size: int | None = None) -> dict:
+def run(input_path: Path, job_dir: Path, tile_size: int | None = None,
+        original_name: str | None = None) -> dict:
     """Run DeepLIIF inference and persist orig.png, seg.png, meta.json.
 
     On CUDA OOM at the chosen tile_size, retries once at tile_size // 2.
+
+    `original_name` is the uploaded file's name, persisted for display.
 
     Returns the meta dict written to disk.
     """
@@ -36,6 +39,7 @@ def run(input_path: Path, job_dir: Path, tile_size: int | None = None) -> dict:
         'width': img.size[0],
         'height': img.size[1],
         'tile_size': tile_size,
+        'original_name': original_name,
     }
     (job_dir / 'meta.json').write_text(json.dumps(meta, indent=2))
     return meta

@@ -69,7 +69,8 @@ def upload():
 
     # Serialize inference: one GPU, one job at a time.
     with _INFERENCE_LOCK:
-        inference.run(input_path, job_dir, tile_size=tile_size)
+        inference.run(input_path, job_dir, tile_size=tile_size,
+                      original_name=f.filename)
 
     # Keep storage bounded.
     jobs.prune_jobs(config.JOBS_DIR, keep=config.MAX_JOBS)
@@ -85,12 +86,16 @@ def result(job_id):
     # 推断推理时使用的 resolution (同 deepliif/models/__init__.py 的映射)
     meta_path = job_dir / 'meta.json'
     tile_size = config.TILE_SIZE
+    image_name = ''
     if meta_path.exists():
-        tile_size = json.loads(meta_path.read_text()).get('tile_size', tile_size)
+        meta = json.loads(meta_path.read_text())
+        tile_size = meta.get('tile_size', tile_size)
+        image_name = meta.get('original_name') or ''
     infer_resolution = 40 if tile_size > 384 else (20 if tile_size > 192 else 10)
     return render_template('result.html',
                            job_id=job_id,
-                           infer_resolution=infer_resolution)
+                           infer_resolution=infer_resolution,
+                           image_name=image_name)
 
 
 @app.route('/image/<job_id>/<name>')

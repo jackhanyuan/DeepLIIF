@@ -175,6 +175,9 @@
     <div id="canvas-frame">
       <canvas id="result-canvas" width="100" height="100"></canvas>
     </div>
+    {% if image_name %}
+    <div id="canvas-caption">{{ image_name }}</div>
+    {% endif %}
 
     <!-- JS populates region entries here after lasso draws -->
     <div id="roi-container"></div>

@@ -44,7 +44,7 @@ from PIL import Image
 # --- Input / output paths (relative paths resolve against the project root) --
 DEFAULT_INPUT_DIR = 'datasets/04_Registered/C2_AYCH_Postop_TMA/AY_LADX-31_20.0x/AY_LADX-31_20.0x_X1Y1'
 DEFAULT_OUTPUT_DIR = 'datasets/05_Results/C2_AYCH_Postop_TMA/AY_LADX-31_20.0x/AY_LADX-31_20.0x_X1Y1/seg_od'
-DEFAULT_MODEL_DIR = 'models/DeepLIIF_web/DeepLIIF_Latest_Model'
+DEFAULT_MODEL_DIR = 'models/DeepLIIF/DeepLIIF_Latest_Model/'
 DEFAULT_FILENAME_PATTERNS = ('*_reg.*',)
 DEFAULT_GPU_IDS = ()  # 空 = 用全部 GPU;(-1,) = CPU
 
@@ -54,18 +54,18 @@ DEFAULT_SEG_WEIGHTS = '0.25,0.15,0.25,0.10,0.25'  # 与 Web/config.py SEG_WEIGHT
 
 # --- Postprocessing thresholds ----------------------------------------------
 DEFAULT_SEG_THRESH = 120          # 像素阴/阳分类阈值 (deepliif DEFAULT_SEG_THRESH)
-DEFAULT_NOISE_THRESH = 4          # 微小噪声下限 (deepliif DEFAULT_NOISE_THRESH)
 DEFAULT_SIZE_THRESH = 210         # 细胞面积下限;整数 或 'default' (KDE 谷底)
 DEFAULT_SIZE_THRESH_UPPER = 2000  # 细胞面积上限;整数 或 'none'
 DEFAULT_OD_THRESH_LOWER = 90      # Web 运行时默认下限 = 0(# OD 量纲换算OD_PY = OD_JS * 100.0 / 35.3, Python 后端 ×100, 浏览器 JS ×35.3 )
 DEFAULT_OD_THRESH_UPPER = 'none'  # 整数 或 'none' (不设上限,与 Web 默认一致)
+DEFAULT_NOISE_THRESH = 4          # 微小噪声下限 (deepliif DEFAULT_NOISE_THRESH)
 DEFAULT_LARGE_NOISE_THRESH = 'default' # 'none' (与 Web 一致) / 'default' (40X=16000px) / 整数
 
 # --- Output options ----------------------------------------------------------
 # save_seg/overlay/refined 控制全尺寸 PNG;save_thumb 独立控制缩略图。
 # 三者解耦:可关掉全尺寸图(--no-save-overlay 等),只保留缩略图。
 DEFAULT_SAVE_SEG = True
-DEFAULT_SAVE_OVERLAY = False
+DEFAULT_SAVE_OVERLAY = True
 DEFAULT_SAVE_REFINED = False
 DEFAULT_SAVE_CELLS_GZ = True
 DEFAULT_SAVE_THUMB = True
@@ -242,8 +242,9 @@ def cli():
 @click.option('--save-cells-gz/--no-save-cells-gz', default=DEFAULT_SAVE_CELLS_GZ, show_default=True,
               help='Save per-cell OD data as <stem>_cells.json.gz.')
 @click.option('--save-thumb/--no-save-thumb', default=DEFAULT_SAVE_THUMB, show_default=True,
-              help='Save 2048-px thumbnails of Seg/SegOverlaid/SegRefined '
-                   '(independent of the --save-seg/overlay/refined full-size switches).')
+              help='Save 2048-px thumbnails of the original image plus '
+                   'Seg/SegOverlaid/SegRefined (independent of the '
+                   '--save-seg/overlay/refined full-size switches).')
 @click.option('--symlink-orig/--no-symlink-orig', default=DEFAULT_SYMLINK_ORIG, show_default=True,
               help='Symlink original input image into output dir for convenience.')
 @click.option('--log-mode', default=DEFAULT_LOG_MODE, show_default=True,
@@ -397,9 +398,12 @@ def test(input_dir, output_dir, tile_size, model_dir, filename_patterns, gpu_ids
                 scoring['seg_weights'] = seg_weights_value
 
                 # 4) 保存结果文件;命名与 cellseg_cli.py 对齐。
-                # 三张图都在内存生成;全尺寸 PNG 是否落盘由各自 save_* 开关决定,
-                # 缩略图由 save_thumb 独立决定 —— thumb_targets 始终收集全部三张。
+                # 三张结果图都在内存生成;全尺寸 PNG 是否落盘由各自 save_* 开关决定,
+                # 缩略图由 save_thumb 独立决定 —— thumb_targets 收集原图 + 三张结果图。
                 thumb_targets = []
+
+                # 原图缩略图:与 Seg/Overlay/Refined 一同生成,便于阈值核对时对照
+                thumb_targets.append((filename, img))
 
                 seg_name = f'{stem}_Seg.png'
                 if save_seg:

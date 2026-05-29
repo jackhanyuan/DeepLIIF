@@ -104,6 +104,7 @@
 
   <div id="loading"><span>Processing…</span></div>
 
+  <script src="{{ url_for('static', filename='script/libs/UTIF.min.js') }}"></script>
   <script>
     const form = document.getElementById('upload-form');
     const drop = document.getElementById('drop-area');
@@ -116,8 +117,52 @@
 
     function showPreview(src, name) {
       preview.src = src;
+      preview.style.display = '';
       previewName.textContent = name || '';
       drop.classList.add('has-preview');
+    }
+
+    function isTiffFile(file) {
+      const name = (file.name || '').toLowerCase();
+      return file.type === 'image/tiff'
+          || name.endsWith('.tif') || name.endsWith('.tiff');
+    }
+
+    // 浏览器 <img> 不支持 TIFF,用 UTIF.js 解码后绘制到 canvas 再转 data URL
+    function previewTiff(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const buf = reader.result;
+          const ifds = UTIF.decode(buf);
+          UTIF.decodeImage(buf, ifds[0], ifds);
+          const rgba = UTIF.toRGBA8(ifds[0]);
+          const w = ifds[0].width, h = ifds[0].height;
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          const imgData = ctx.createImageData(w, h);
+          imgData.data.set(rgba);
+          ctx.putImageData(imgData, 0, 0);
+          showPreview(canvas.toDataURL('image/png'), file.name);
+        } catch (err) {
+          // 解码失败时退化为仅显示文件名,避免出现破损图标
+          console.error('TIFF preview failed:', err);
+          preview.removeAttribute('src');
+          preview.style.display = 'none';
+          previewName.textContent = file.name + ' (preview unavailable)';
+          drop.classList.add('has-preview');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function previewFile(file) {
+      if (isTiffFile(file))
+        previewTiff(file);
+      else
+        showPreview(URL.createObjectURL(file), file.name);
     }
 
     function clearPreview() {
@@ -142,7 +187,7 @@
         // selecting a real file clears any pending sample choice
         document.querySelectorAll('input[name=sample]').forEach(r => r.checked = false);
         const f = fileInput.files[0];
-        showPreview(URL.createObjectURL(f), f.name);
+        previewFile(f);
       }
       refreshSubmit();
     });
